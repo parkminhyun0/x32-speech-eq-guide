@@ -1,4 +1,4 @@
-const CACHE_NAME = 'x32-speech-eq-guide-v2'
+const CACHE_NAME = 'x32-speech-eq-guide-v3'
 const APP_SHELL = [
   './',
   './index.html',
@@ -10,6 +10,8 @@ const APP_SHELL = [
   './speech-presets.js',
   './measurement-confidence.css',
   './measurement-confidence.js',
+  './x32-ocr.css',
+  './x32-ocr.js',
 ]
 
 self.addEventListener('install', (event) => {

@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="./mobile-nav.css" />
     <link rel="stylesheet" href="./speech-presets.css" />
     <link rel="stylesheet" href="./measurement-confidence.css" />
+    <link rel="stylesheet" href="./x32-ocr.css" />
     <title>X32 Speech EQ Guide</title>
   </head>
   <body>
@@ -20,6 +21,8 @@
     <script defer src="./mobile-nav.js"></script>
     <script defer src="./speech-presets.js"></script>
     <script defer src="./measurement-confidence.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script defer src="./x32-ocr.js"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'))
