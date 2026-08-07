@@ -1,22 +1,16 @@
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Activity, CheckCircle2, Clock3, Mic, MicOff, RotateCcw, SlidersHorizontal, Upload } from 'lucide-react'
+import ToneGuide from './ToneGuide'
 import './x32-controls.css'
 
 type AudioState = { rms: number; peak: number; bands: number[] }
 type Sample = AudioState & { at: number }
-type AnalysisResult = {
-  duration: number
-  averageRms: number
-  maxPeak: number
-  averageBands: number[]
-  score: number
-  findings: string[]
-  recommendations: string[]
-}
+type AnalysisResult = { duration: number; averageRms: number; maxPeak: number; averageBands: number[]; score: number; findings: string[]; recommendations: string[] }
 type EqBand = { name: string; frequency: number; gain: number; q: number }
 
 const MEASUREMENT_SECONDS = 30
 const bandLabels = ['80', '125', '250', '500', '1k', '2k', '4k', '8k']
+const ranges = [[60,100],[100,160],[160,350],[350,700],[700,1400],[1400,2800],[2800,5600],[5600,10000]]
 const emptyAudio: AudioState = { rms: 0, peak: 0, bands: Array(8).fill(0) }
 const initialEqBands: EqBand[] = [
   { name: 'Low', frequency: 120, gain: 0, q: 1 },
@@ -49,60 +43,36 @@ export default function App() {
 
   async function startListening() {
     try {
-      stopHardware()
-      setError('')
-      setResult(null)
-      setElapsed(0)
-      setAudio(emptyAudio)
-      samplesRef.current = []
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-      })
+      stopHardware(); setError(''); setResult(null); setElapsed(0); setAudio(emptyAudio); samplesRef.current = []
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false } })
       const context = new AudioContext()
       const source = context.createMediaStreamSource(stream)
       const analyser = context.createAnalyser()
       analyser.fftSize = 2048
       analyser.smoothingTimeConstant = 0.78
       source.connect(analyser)
-      contextRef.current = context
-      streamRef.current = stream
-      startedAtRef.current = performance.now()
-      setIsListening(true)
-
+      contextRef.current = context; streamRef.current = stream; startedAtRef.current = performance.now(); setIsListening(true)
       const frequency = new Uint8Array(analyser.frequencyBinCount)
       const time = new Uint8Array(analyser.fftSize)
       const hzPerBin = context.sampleRate / analyser.fftSize
-      const ranges = [[60, 100], [100, 160], [160, 350], [350, 700], [700, 1400], [1400, 2800], [2800, 5600], [5600, 10000]]
-
       const update = () => {
-        analyser.getByteFrequencyData(frequency)
-        analyser.getByteTimeDomainData(time)
-        let sum = 0
-        let peak = 0
-        for (const sample of time) {
-          const normalized = (sample - 128) / 128
-          sum += normalized * normalized
-          peak = Math.max(peak, Math.abs(normalized))
-        }
+        analyser.getByteFrequencyData(frequency); analyser.getByteTimeDomainData(time)
+        let sum = 0; let peak = 0
+        for (const sample of time) { const normalized = (sample - 128) / 128; sum += normalized * normalized; peak = Math.max(peak, Math.abs(normalized)) }
         const bands = ranges.map(([low, high]) => {
-          const start = Math.max(0, Math.floor(low / hzPerBin))
-          const end = Math.min(frequency.length - 1, Math.ceil(high / hzPerBin))
-          let total = 0
-          for (let index = start; index <= end; index += 1) total += frequency[index]
+          const start = Math.max(0, Math.floor(low / hzPerBin)); const end = Math.min(frequency.length - 1, Math.ceil(high / hzPerBin))
+          let total = 0; for (let index = start; index <= end; index += 1) total += frequency[index]
           return Math.round((total / Math.max(1, end - start + 1) / 255) * 100)
         })
         const nextAudio = { rms: Math.round(Math.sqrt(sum / time.length) * 100), peak: Math.round(peak * 100), bands }
         const elapsedSeconds = (performance.now() - startedAtRef.current) / 1000
-        setAudio(nextAudio)
-        setElapsed(Math.min(MEASUREMENT_SECONDS, elapsedSeconds))
-        samplesRef.current.push({ ...nextAudio, at: elapsedSeconds })
-        if (elapsedSeconds >= MEASUREMENT_SECONDS) return finishMeasurement()
+        setAudio(nextAudio); setElapsed(Math.min(MEASUREMENT_SECONDS, elapsedSeconds)); samplesRef.current.push({ ...nextAudio, at: elapsedSeconds })
+        if (elapsedSeconds >= MEASUREMENT_SECONDS) { finishMeasurement(); return }
         frameRef.current = requestAnimationFrame(update)
       }
       update()
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '마이크를 시작하지 못했습니다.')
-      stopHardware()
+      setError(caught instanceof Error ? caught.message : '마이크를 시작하지 못했습니다.'); stopHardware()
     }
   }
 
@@ -110,26 +80,16 @@ export default function App() {
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current)
     streamRef.current?.getTracks().forEach((track) => track.stop())
     if (contextRef.current && contextRef.current.state !== 'closed') void contextRef.current.close()
-    frameRef.current = null
-    streamRef.current = null
-    contextRef.current = null
-    setIsListening(false)
+    frameRef.current = null; streamRef.current = null; contextRef.current = null; setIsListening(false)
   }
 
   function finishMeasurement() {
-    const samples = samplesRef.current
-    stopHardware()
-    const duration = samples.at(-1)?.at ?? 0
-    if (duration < 5) {
-      setError('분석하기에는 측정 시간이 너무 짧습니다. 최소 5초 이상 측정해 주세요.')
-      return
-    }
+    const samples = samplesRef.current; stopHardware(); const duration = samples.at(-1)?.at ?? 0
+    if (duration < 5) { setError('분석하기에는 측정 시간이 너무 짧습니다. 최소 5초 이상 측정해 주세요.'); return }
     const averageRms = Math.round(samples.reduce((sum, sample) => sum + sample.rms, 0) / samples.length)
     const maxPeak = Math.max(...samples.map((sample) => sample.peak))
     const averageBands = bandLabels.map((_, index) => Math.round(samples.reduce((sum, sample) => sum + sample.bands[index], 0) / samples.length))
-    const findings: string[] = []
-    const recommendations: string[] = []
-    let score = 100
+    const findings: string[] = []; const recommendations: string[] = []; let score = 100
     if (maxPeak >= 92) { findings.push('입력 피크가 높아 클리핑 위험이 있습니다.'); recommendations.push('X32 입력 게인을 먼저 2~4dB 낮추세요.'); score -= 22 }
     else if (maxPeak < 25) { findings.push('입력 레벨이 낮아 작은 발음이 묻힐 수 있습니다.'); recommendations.push('게인을 소폭 높이고 큰 발성의 Peak를 다시 확인하세요.'); score -= 12 }
     if (averageRms < 4) { findings.push('평균 음량이 낮거나 마이크 거리가 멀 수 있습니다.'); recommendations.push('마이크 거리를 일정하게 유지해 재측정하세요.'); score -= 15 }
@@ -140,47 +100,40 @@ export default function App() {
     setResult({ duration: Math.round(duration * 10) / 10, averageRms, maxPeak, averageBands, score: Math.max(35, score), findings, recommendations })
   }
 
-  function resetMeasurement() {
-    stopHardware(); samplesRef.current = []; setAudio(emptyAudio); setElapsed(0); setResult(null); setError('')
-  }
-
-  function handleImage(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (!file) return
-    if (imageUrl) URL.revokeObjectURL(imageUrl)
-    setImageUrl(URL.createObjectURL(file))
-    setImageName(file.name)
-  }
-
-  function updateEqBand(index: number, field: keyof Omit<EqBand, 'name'>, value: number) {
-    setEqBands((current) => current.map((band, bandIndex) => bandIndex === index ? { ...band, [field]: value } : band))
-  }
+  function resetMeasurement() { stopHardware(); samplesRef.current = []; setAudio(emptyAudio); setElapsed(0); setResult(null); setError('') }
+  function handleImage(event: ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file) return; if (imageUrl) URL.revokeObjectURL(imageUrl); setImageUrl(URL.createObjectURL(file)); setImageName(file.name) }
+  function updateEqBand(index: number, field: keyof Omit<EqBand,'name'>, value: number) { setEqBands((current) => current.map((band, bandIndex) => bandIndex === index ? { ...band, [field]: value } : band)) }
 
   const crossChecks = useMemo(() => {
-    if (!result) return ['음성 측정을 완료하면 현재 X32 설정과 대조 결과가 여기에 표시됩니다.']
-    const checks: string[] = []
-    const lowMid = eqBands[1]
-    const highMid = eqBands[2]
-    const high = eqBands[3]
-    if (result.averageBands[2] > result.averageBands[5] + 14 && lowMid.gain > 0) checks.push(`저중역 과다 후보인데 Low Mid가 +${lowMid.gain}dB로 부스트되어 있습니다. 먼저 0dB로 복원해 보세요.`)
-    if (result.averageBands[6] + 8 < result.averageBands[2] && highMid.gain < 0) checks.push(`명료도 부족 후보인데 High Mid가 ${highMid.gain}dB로 컷되어 있습니다. 먼저 컷을 줄여 비교하세요.`)
-    if (result.averageBands[7] > result.averageBands[5] + 16 && high.gain > 1) checks.push(`고역 과다 후보인데 High가 +${high.gain}dB로 부스트되어 있습니다. 1~2dB 낮춰 비교하세요.`)
-    if (!lowCutEnabled && result.averageBands[0] > result.averageBands[3] + 10) checks.push('저역 에너지가 많은데 Low Cut이 꺼져 있습니다. 70~100Hz 범위에서 켜고 재측정하세요.')
-    if (lowCutEnabled && lowCutFrequency > 140) checks.push(`Low Cut ${lowCutFrequency}Hz는 설교 음성의 두께를 과도하게 줄일 수 있으므로 청취 비교가 필요합니다.`)
-    return checks.length ? checks : ['현재 입력한 X32 EQ 값과 수음 결과 사이에 뚜렷한 충돌은 발견되지 않았습니다. 한 밴드씩 변경하며 재측정하세요.']
+    if (!result) return ['음성 측정을 완료하면 현재 X32 설정과 대조 결과가 표시됩니다.']
+    const checks: string[] = []; const lowMid = eqBands[1]; const highMid = eqBands[2]; const high = eqBands[3]
+    if (result.averageBands[2] > result.averageBands[5] + 14 && lowMid.gain > 0) checks.push(`저중역 과다 후보인데 Low Mid가 +${lowMid.gain}dB입니다. 먼저 0dB로 복원해 보세요.`)
+    if (result.averageBands[6] + 8 < result.averageBands[2] && highMid.gain < 0) checks.push(`명료도 부족 후보인데 High Mid가 ${highMid.gain}dB로 컷되어 있습니다.`)
+    if (result.averageBands[7] > result.averageBands[5] + 16 && high.gain > 1) checks.push(`고역 과다 후보인데 High가 +${high.gain}dB입니다. 1~2dB 낮춰 비교하세요.`)
+    if (!lowCutEnabled && result.averageBands[0] > result.averageBands[3] + 10) checks.push('저역 에너지가 많은데 Low Cut이 꺼져 있습니다. 70~100Hz에서 켜고 재측정하세요.')
+    if (lowCutEnabled && lowCutFrequency > 140) checks.push(`Low Cut ${lowCutFrequency}Hz는 음성의 두께를 과도하게 줄일 수 있습니다.`)
+    return checks.length ? checks : ['입력한 X32 EQ 값과 수음 결과 사이에 뚜렷한 충돌은 없습니다. 한 밴드씩 변경하며 재측정하세요.']
   }, [result, eqBands, lowCutEnabled, lowCutFrequency])
 
   const remaining = Math.max(0, Math.ceil(MEASUREMENT_SECONDS - elapsed))
   const status = isListening ? `${remaining}초 남음` : result ? `분석 완료 · ${result.score}점` : '30초 측정 대기'
 
   return <main className="app-shell">
-    <header className="hero"><div><p className="eyebrow">X32 SPEECH EQ GUIDE · MVP 0.3</p><h1>설교 음성과 X32 설정을<br />함께 대조합니다.</h1><p className="hero-copy">30초 수음 후 X32 EQ 화면을 올리고, 화면의 값을 직접 확인해 입력하면 현재 설정과 음향 분석의 충돌 후보를 안내합니다.</p></div><div className="status-card"><Activity size={20}/><span>현재 상태</span><strong>{status}</strong><div className="progress-track"><div className="progress-fill" style={{width:`${Math.min(100,(elapsed/MEASUREMENT_SECONDS)*100)}%`}}/></div></div></header>
+    <header className="hero"><div><p className="eyebrow">X32 SPEECH EQ GUIDE · MVP 0.4</p><h1>휴대폰으로 측정하고<br/>음색까지 이해합니다.</h1><p className="hero-copy">설교 음성을 측정하고 X32 설정과 대조한 뒤, 각 음역대가 만드는 톤과 조정 방향을 바로 확인합니다.</p></div><div className="status-card"><Activity size={20}/><span>현재 상태</span><strong>{status}</strong><div className="progress-track"><div className="progress-fill" style={{width:`${Math.min(100,(elapsed/MEASUREMENT_SECONDS)*100)}%`}}/></div></div></header>
+
     <section className="control-grid">
-      <article className="panel microphone-panel"><div className="panel-heading"><div><span className="step">01</span><h2>30초 설교 음성 측정</h2></div><div className="button-row">{result&&<button className="secondary" onClick={resetMeasurement}><RotateCcw size={18}/>다시 측정</button>}<button className={isListening?'danger':'primary'} onClick={isListening?finishMeasurement:startListening}>{isListening?<MicOff size={18}/>:<Mic size={18}/>} {isListening?'정지하고 분석':'30초 측정 시작'}</button></div></div>{error&&<p className="error-message">{error}</p>}<div className="timer-card"><Clock3 size={20}/><div><span>측정 시간</span><strong>{elapsed.toFixed(1)} / 30초</strong></div><p>{isListening?'평소 설교 속도와 음량으로 말씀해 주세요.':result?'측정 완료. X32 값을 입력해 대조하세요.':'최소 5초, 권장 30초입니다.'}</p></div><div className="meter-row"><div className="metric"><span>현재 RMS</span><strong>{audio.rms}%</strong></div><div className="metric"><span>현재 PEAK</span><strong>{audio.peak}%</strong></div></div><div className="spectrum">{audio.bands.map((value,index)=><div className="band" key={bandLabels[index]}><div className="bar-track"><div className="bar-fill" style={{height:`${Math.max(3,value)}%`}}/></div><strong>{value}</strong><span>{bandLabels[index]}Hz</span></div>)}</div></article>
-      <article className="panel upload-panel"><div className="panel-heading compact"><div><span className="step">02</span><h2>X32 EQ 화면·설정</h2></div><SlidersHorizontal size={22}/></div><label className="upload-zone"><Upload size={28}/><strong>EQ 화면 이미지 선택</strong><span>이미지를 보면서 아래 값을 확인해 입력합니다.</span><input type="file" accept="image/png,image/jpeg" onChange={handleImage}/></label>{imageUrl&&<><div className="x32-image-preview"><img src={imageUrl} alt="업로드한 X32 EQ 화면"/></div><p className="image-meta">{imageName}</p><button className="clear-image" onClick={()=>{URL.revokeObjectURL(imageUrl);setImageUrl('');setImageName('')}}>이미지 지우기</button></>}<div className="eq-form"><div className="lowcut-row"><label><input type="checkbox" checked={lowCutEnabled} onChange={(e)=>setLowCutEnabled(e.target.checked)}/>Low Cut 사용</label><label>Hz <input type="number" min="20" max="400" value={lowCutFrequency} onChange={(e)=>setLowCutFrequency(Number(e.target.value))}/></label></div><div className="eq-form-header"><span>Band</span><span>Freq Hz</span><span>Gain dB</span><span>Q</span></div>{eqBands.map((band,index)=><div className="eq-band-row" key={band.name}><strong>{band.name}</strong><input aria-label={`${band.name} frequency`} type="number" min="20" max="20000" value={band.frequency} onChange={(e)=>updateEqBand(index,'frequency',Number(e.target.value))}/><input aria-label={`${band.name} gain`} type="number" min="-15" max="15" step="0.5" value={band.gain} onChange={(e)=>updateEqBand(index,'gain',Number(e.target.value))}/><input aria-label={`${band.name} Q`} type="number" min="0.3" max="10" step="0.1" value={band.q} onChange={(e)=>updateEqBand(index,'q',Number(e.target.value))}/></div>)}</div><div className="cross-check"><h3>수음 결과 × 현재 EQ 대조</h3>{crossChecks.map((check,index)=><div className="cross-check-item" key={check}><span>{index+1}</span><p>{check}</p></div>)}</div></article>
+      <article className="panel microphone-panel"><div className="panel-heading"><div><span className="step">01</span><h2>30초 설교 음성 측정</h2></div><div className="button-row">{result&&<button className="secondary" onClick={resetMeasurement}><RotateCcw size={18}/>다시 측정</button>}<button className={isListening?'danger':'primary'} onClick={isListening?finishMeasurement:startListening}>{isListening?<MicOff size={18}/>:<Mic size={18}/>} {isListening?'정지하고 분석':'30초 측정 시작'}</button></div></div>{error&&<p className="error-message">{error}</p>}<div className="timer-card"><Clock3 size={20}/><div><span>측정 시간</span><strong>{elapsed.toFixed(1)} / 30초</strong></div><p>{isListening?'평소 설교 속도와 음량으로 말씀해 주세요.':result?'측정 완료. 아래 결과와 X32 설정을 대조하세요.':'최소 5초, 권장 30초입니다.'}</p></div><div className="meter-row"><div className="metric"><span>현재 RMS</span><strong>{audio.rms}%</strong></div><div className="metric"><span>현재 PEAK</span><strong>{audio.peak}%</strong></div></div><div className="spectrum">{audio.bands.map((value,index)=><div className="band" key={bandLabels[index]}><div className="bar-track"><div className="bar-fill" style={{height:`${Math.max(3,value)}%`}}/></div><strong>{value}</strong><span>{bandLabels[index]}Hz</span></div>)}</div></article>
+
+      <article className="panel upload-panel"><div className="panel-heading compact"><div><span className="step">02</span><h2>X32 EQ 화면·설정</h2></div><SlidersHorizontal size={22}/></div><label className="upload-zone"><Upload size={28}/><strong>EQ 화면 이미지 선택</strong><span>휴대폰 촬영 또는 화면 캡처를 사용할 수 있습니다.</span><input type="file" accept="image/png,image/jpeg" capture="environment" onChange={handleImage}/></label>{imageUrl&&<><div className="x32-image-preview"><img src={imageUrl} alt="업로드한 X32 EQ 화면"/></div><p className="image-meta">{imageName}</p><button className="clear-image" onClick={()=>{URL.revokeObjectURL(imageUrl);setImageUrl('');setImageName('')}}>이미지 지우기</button></>}<div className="eq-form"><div className="lowcut-row"><label><input type="checkbox" checked={lowCutEnabled} onChange={(e)=>setLowCutEnabled(e.target.checked)}/>Low Cut 사용</label><label>Hz <input type="number" min="20" max="400" value={lowCutFrequency} onChange={(e)=>setLowCutFrequency(Number(e.target.value))}/></label></div>{eqBands.map((band,index)=><div className="eq-band-row" key={band.name}><strong>{band.name}</strong><input aria-label={`${band.name} frequency`} type="number" value={band.frequency} onChange={(e)=>updateEqBand(index,'frequency',Number(e.target.value))}/><input aria-label={`${band.name} gain`} type="number" step="0.5" value={band.gain} onChange={(e)=>updateEqBand(index,'gain',Number(e.target.value))}/><input aria-label={`${band.name} q`} type="number" step="0.1" min="0.3" max="10" value={band.q} onChange={(e)=>updateEqBand(index,'q',Number(e.target.value))}/></div>)}</div></article>
     </section>
-    {result&&<section className="panel result-panel"><div className="panel-heading compact"><div><span className="step">03</span><h2>설교 음향 1차 분석 결과</h2></div><div className="score-badge"><CheckCircle2 size={20}/><strong>{result.score}점</strong></div></div><div className="result-metrics"><div><span>측정 시간</span><strong>{result.duration}초</strong></div><div><span>평균 RMS</span><strong>{result.averageRms}%</strong></div><div><span>최대 Peak</span><strong>{result.maxPeak}%</strong></div></div><div className="analysis-columns"><div className="analysis-box"><h3>감지된 상태</h3>{result.findings.map((item)=><p key={item}>{item}</p>)}</div><div className="analysis-box recommendation-box"><h3>안전한 조정 후보</h3>{result.recommendations.map((item,index)=><p key={item}><span>{index+1}</span>{item}</p>)}</div></div><div className="average-spectrum"><h3>측정 전체 평균 대역</h3><div className="compact-spectrum">{result.averageBands.map((value,index)=><div key={bandLabels[index]}><span>{bandLabels[index]}Hz</span><strong>{value}</strong></div>)}</div></div></section>}
-    <section className="panel recommendation-panel"><div className="panel-heading compact"><div><span className="step">04</span><h2>적용 원칙</h2></div></div><div className="recommendations"><div><span>1</span><p><strong>이미지 값은 직접 확인</strong>자동 판독 결과를 확정값으로 쓰지 않습니다.</p></div><div><span>2</span><p><strong>한 밴드씩 변경</strong>같은 거리와 문장으로 재측정합니다.</p></div><div><span>3</span><p><strong>객석 청취로 최종 판단</strong>브라우저 결과만으로 설정을 자동 변경하지 않습니다.</p></div></div></section>
-    <footer>현재 점수와 대조 결과는 MVP 비교용 후보이며 전문 측정과 현장 판단을 대체하지 않습니다.</footer>
+
+    {result&&<section className="panel result-panel"><div className="panel-heading compact"><div><span className="step">03</span><h2>설교 음향 분석 결과</h2></div><div className="score-badge"><CheckCircle2 size={20}/><strong>{result.score}점</strong></div></div><div className="result-metrics"><div><span>측정 시간</span><strong>{result.duration}초</strong></div><div><span>평균 RMS</span><strong>{result.averageRms}%</strong></div><div><span>최대 Peak</span><strong>{result.maxPeak}%</strong></div></div><div className="analysis-columns"><div className="analysis-box"><h3>감지된 상태</h3>{result.findings.map((item)=><p key={item}>{item}</p>)}</div><div className="analysis-box recommendation-box"><h3>X32 대조·조정 후보</h3>{[...result.recommendations,...crossChecks].map((item,index)=><p key={`${item}-${index}`}><span>{index+1}</span>{item}</p>)}</div></div></section>}
+
+    <ToneGuide/>
+
+    <section className="panel recommendation-panel"><div className="panel-heading compact"><div><span className="step">05</span><h2>적용 원칙</h2></div></div><div className="recommendations"><div><span>1</span><p><strong>게인을 먼저 확인</strong>EQ보다 클리핑과 입력 레벨을 먼저 안정화합니다.</p></div><div><span>2</span><p><strong>한 번에 한 밴드</strong>작게 조정한 뒤 같은 문장으로 재측정합니다.</p></div><div><span>3</span><p><strong>객석 청취로 확정</strong>휴대폰 분석은 후보이며 최종 판단은 실제 청취로 합니다.</p></div></div></section>
+
+    <div className="mobile-action-dock"><button className="mobile-secondary" onClick={resetMeasurement} aria-label="초기화"><RotateCcw size={20}/></button><button className={isListening?'mobile-danger':'mobile-primary'} onClick={isListening?finishMeasurement:startListening}>{isListening?<MicOff size={20}/>:<Mic size={20}/>} {isListening?'정지·분석':'30초 측정'}</button></div>
+    <footer>휴대폰 마이크와 공간의 특성이 결과에 영향을 줄 수 있습니다. 자동 설정 확정이나 믹서 자동 변경은 하지 않습니다.</footer>
   </main>
 }
