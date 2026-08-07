@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, Ear, Info, Waves } from 'lucide-react'
+import SingleTapButton from './SingleTapButton'
 import './tone-guide.css'
 
 type ToneBand = {
@@ -46,11 +47,15 @@ export default function ToneGuide() {
           const isOpen = openIndex === index
           return (
             <article className={`tone-band-card ${isOpen ? 'is-open' : ''}`} key={band.range}>
-              <button className="tone-band-trigger" onClick={() => setOpenIndex(isOpen ? null : index)} aria-expanded={isOpen}>
+              <SingleTapButton
+                className="tone-band-trigger"
+                onActivate={() => setOpenIndex(isOpen ? null : index)}
+                aria-expanded={isOpen}
+              >
                 <span className="tone-range">{band.range}</span>
                 <span className="tone-title">{band.title}</span>
                 {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-              </button>
+              </SingleTapButton>
               {isOpen && (
                 <div className="tone-band-detail">
                   <div><Waves size={18} /><p><strong>역할</strong>{band.role}</p></div>

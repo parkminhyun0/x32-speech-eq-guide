@@ -12,6 +12,27 @@ function findTarget(item) {
   return heading?.closest('section, article') || heading
 }
 
+function bindTap(element, handler) {
+  let lastPointerActivation = 0
+
+  element.addEventListener('pointerup', (event) => {
+    if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return
+    if (element.disabled) return
+    lastPointerActivation = performance.now()
+    event.preventDefault()
+    handler()
+  })
+
+  element.addEventListener('click', (event) => {
+    if (element.disabled) return
+    if (performance.now() - lastPointerActivation < 700) {
+      event.preventDefault()
+      return
+    }
+    handler()
+  })
+}
+
 function mountNavigation() {
   if (document.querySelector('.mobile-section-nav')) return
   const main = document.querySelector('main')
@@ -25,7 +46,7 @@ function mountNavigation() {
     const button = document.createElement('button')
     button.type = 'button'
     button.innerHTML = `<span aria-hidden="true">${item.icon}</span><strong>${item.label}</strong>`
-    button.addEventListener('click', () => {
+    bindTap(button, () => {
       const target = findTarget(item)
       if (!target) return
       target.scrollIntoView({ behavior: 'smooth', block: 'start' })

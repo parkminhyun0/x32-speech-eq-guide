@@ -2,33 +2,37 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#0b0f14" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="X32 EQ Guide" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./app-icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./touch-controls.css" />
-    <link rel="stylesheet" href="./mobile-nav.css" />
-    <link rel="stylesheet" href="./speech-presets.css" />
-    <link rel="stylesheet" href="./measurement-confidence.css" />
-    <link rel="stylesheet" href="./x32-ocr.css" />
-    <link rel="stylesheet" href="./live-ipad-monitor.css" />
+    <link rel="stylesheet" href="./touch-controls.css?v=8" />
+    <link rel="stylesheet" href="./mobile-nav.css?v=8" />
+    <link rel="stylesheet" href="./speech-presets.css?v=8" />
+    <link rel="stylesheet" href="./measurement-confidence.css?v=8" />
+    <link rel="stylesheet" href="./x32-ocr.css?v=8" />
+    <link rel="stylesheet" href="./live-ipad-monitor.css?v=8" />
     <title>X32 Speech EQ Guide</title>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-    <script defer src="./mobile-nav.js"></script>
-    <script defer src="./speech-presets.js"></script>
-    <script defer src="./measurement-confidence.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <script defer src="./x32-ocr.js"></script>
-    <script defer src="./live-ipad-monitor.js"></script>
+    <script type="module" src="/src/main.tsx"></script>
+    <script defer src="./mobile-nav.js?v=8"></script>
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'))
+        window.addEventListener('load', () => {
+          let refreshing = false
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return
+            refreshing = true
+            window.location.reload()
+          })
+          navigator.serviceWorker.register('./sw.js?v=8').then((registration) => registration.update())
+        })
       }
     </script>
   </body>
