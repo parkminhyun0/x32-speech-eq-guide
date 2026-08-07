@@ -24,16 +24,53 @@ type TesseractResult = {
   }
 }
 
+type TesseractApi = {
+  recognize: (
+    image: string,
+    language: string,
+    options?: { logger?: (message: TesseractMessage) => void },
+  ) => Promise<TesseractResult>
+}
+
 declare global {
   interface Window {
-    Tesseract?: {
-      recognize: (
-        image: string,
-        language: string,
-        options?: { logger?: (message: TesseractMessage) => void },
-      ) => Promise<TesseractResult>
-    }
+    Tesseract?: TesseractApi
   }
+}
+
+const TESSERACT_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'
+let tesseractLoader: Promise<TesseractApi> | null = null
+
+function loadTesseract() {
+  if (window.Tesseract) return Promise.resolve(window.Tesseract)
+  if (tesseractLoader) return tesseractLoader
+
+  tesseractLoader = new Promise<TesseractApi>((resolve, reject) => {
+    const finish = () => {
+      if (window.Tesseract) resolve(window.Tesseract)
+      else reject(new Error('Tesseract API was not exposed after loading'))
+    }
+
+    const existing = document.querySelector<HTMLScriptElement>('script[data-x32-tesseract]')
+    if (existing) {
+      existing.addEventListener('load', finish, { once: true })
+      existing.addEventListener('error', () => reject(new Error('Tesseract script failed to load')), { once: true })
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = TESSERACT_SCRIPT_URL
+    script.async = true
+    script.dataset.x32Tesseract = 'true'
+    script.addEventListener('load', finish, { once: true })
+    script.addEventListener('error', () => reject(new Error('Tesseract script failed to load')), { once: true })
+    document.head.appendChild(script)
+  }).catch((error) => {
+    tesseractLoader = null
+    throw error
+  })
+
+  return tesseractLoader
 }
 
 const BAND_NAMES = ['Low', 'Low Mid', 'High Mid', 'High']
@@ -129,15 +166,12 @@ export default function X32Ocr({ imageUrl, onApply }: X32OcrProps) {
       setStatus('missing-image')
       return
     }
-    if (!window.Tesseract) {
-      setStatus('engine-error')
-      return
-    }
 
     setStatus('working')
-    setProgress(0)
+    setProgress(1)
     try {
-      const result = await window.Tesseract.recognize(imageUrl, 'eng', {
+      const tesseract = await loadTesseract()
+      const result = await tesseract.recognize(imageUrl, 'eng', {
         logger(message) {
           if (message.status === 'recognizing text') setProgress(Math.round((message.progress || 0) * 100))
         },
