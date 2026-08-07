@@ -21,6 +21,8 @@
   }
 
   let selected = 'natural'
+  let rendering = false
+  let renderQueued = false
 
   function readEqInputs() {
     const rows = [...document.querySelectorAll('.eq-band-row')]
@@ -78,52 +80,78 @@
   }
 
   function render() {
-    let panel = document.querySelector('#speech-preset-advisor')
-    if (!panel) {
-      panel = document.createElement('section')
-      panel.id = 'speech-preset-advisor'
-      panel.className = 'panel speech-preset-panel'
-      const anchor = document.querySelector('.recommendation-panel') || document.querySelector('footer')
-      anchor?.parentNode?.insertBefore(panel, anchor)
-    }
+    if (rendering || !document.querySelector('.app-shell')) return
+    rendering = true
+    try {
+      let panel = document.querySelector('#speech-preset-advisor')
+      if (!panel) {
+        panel = document.createElement('section')
+        panel.id = 'speech-preset-advisor'
+        panel.className = 'panel speech-preset-panel'
+        const anchor = document.querySelector('.recommendation-panel') || document.querySelector('footer')
+        anchor?.parentNode?.insertBefore(panel, anchor)
+      }
 
-    const preset = presets[selected]
-    const suggestions = buildSuggestions()
-    panel.innerHTML = `
-      <div class="panel-heading compact">
-        <div><span class="step">07</span><h2>설교 음색 프리셋</h2></div>
-        <span class="preset-status">비교 기준</span>
-      </div>
-      <p class="preset-intro">프리셋은 자동 적용값이 아니라, 실측 결과를 해석하기 위한 목표 방향입니다.</p>
-      <div class="preset-tabs" role="tablist" aria-label="설교 음색 프리셋">
-        ${Object.entries(presets).map(([key, value]) => `<button type="button" role="tab" aria-selected="${key === selected}" data-preset="${key}" class="${key === selected ? 'active' : ''}">${value.name}</button>`).join('')}
-      </div>
-      <div class="preset-summary">
-        <div><span>선택 기준</span><strong>${preset.name}</strong><p>${preset.description}</p></div>
-        <div class="preset-lowcut"><span>Low Cut 시작 범위</span><strong>${preset.lowCut}</strong></div>
-      </div>
-      <div class="preset-goals">${preset.goals.map((goal) => `<span>${goal}</span>`).join('')}</div>
-      <div class="preset-suggestions">
-        <h3>현재 측정·X32 설정에 대한 조정 후보</h3>
-        ${suggestions.map((item, index) => `<div><span>${index + 1}</span><p>${item}</p></div>`).join('')}
-      </div>
-      <p class="preset-warning">한 번에 한 항목만 0.5–1dB씩 변경하고, 같은 문장으로 재측정하세요. 실제 객석 청취가 최종 기준입니다.</p>
-    `
+      const preset = presets[selected]
+      const suggestions = buildSuggestions()
+      panel.innerHTML = `
+        <div class="panel-heading compact">
+          <div><span class="step">07</span><h2>설교 음색 프리셋</h2></div>
+          <span class="preset-status">비교 기준</span>
+        </div>
+        <p class="preset-intro">프리셋은 자동 적용값이 아니라, 실측 결과를 해석하기 위한 목표 방향입니다.</p>
+        <div class="preset-tabs" role="tablist" aria-label="설교 음색 프리셋">
+          ${Object.entries(presets).map(([key, value]) => `<button type="button" role="tab" aria-selected="${key === selected}" data-preset="${key}" class="${key === selected ? 'active' : ''}">${value.name}</button>`).join('')}
+        </div>
+        <div class="preset-summary">
+          <div><span>선택 기준</span><strong>${preset.name}</strong><p>${preset.description}</p></div>
+          <div class="preset-lowcut"><span>Low Cut 시작 범위</span><strong>${preset.lowCut}</strong></div>
+        </div>
+        <div class="preset-goals">${preset.goals.map((goal) => `<span>${goal}</span>`).join('')}</div>
+        <div class="preset-suggestions">
+          <h3>현재 측정·X32 설정에 대한 조정 후보</h3>
+          ${suggestions.map((item, index) => `<div><span>${index + 1}</span><p>${item}</p></div>`).join('')}
+        </div>
+        <p class="preset-warning">한 번에 한 항목만 0.5–1dB씩 변경하고, 같은 문장으로 재측정하세요. 실제 객석 청취가 최종 기준입니다.</p>
+      `
 
-    panel.querySelectorAll('[data-preset]').forEach((button) => {
-      button.addEventListener('click', () => {
-        selected = button.dataset.preset
-        render()
+      panel.querySelectorAll('[data-preset]').forEach((button) => {
+        button.addEventListener('click', () => {
+          selected = button.dataset.preset || 'natural'
+          render()
+        })
       })
+    } finally {
+      rendering = false
+    }
+  }
+
+  function queueRender() {
+    if (renderQueued) return
+    renderQueued = true
+    window.requestAnimationFrame(() => {
+      renderQueued = false
+      render()
     })
   }
 
-  const observer = new MutationObserver(() => {
-    if (document.querySelector('.app-shell')) render()
-  })
-
   window.addEventListener('DOMContentLoaded', () => {
     render()
-    observer.observe(document.body, { childList: true, subtree: true })
+
+    document.body.addEventListener('input', (event) => {
+      if (event.target.closest?.('.eq-form')) queueRender()
+    })
+    document.body.addEventListener('change', (event) => {
+      if (event.target.closest?.('.eq-form')) queueRender()
+    })
+
+    const observer = new MutationObserver((mutations) => {
+      const relevant = mutations.some((mutation) => {
+        const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement
+        return target && !target.closest('#speech-preset-advisor')
+      })
+      if (relevant) queueRender()
+    })
+    observer.observe(document.querySelector('#root') || document.body, { childList: true, subtree: true })
   })
 })()
