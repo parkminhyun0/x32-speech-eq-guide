@@ -10,12 +10,14 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./app-icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./mobile-nav.css" />
+    <link rel="stylesheet" href="./speech-presets.css" />
     <title>X32 Speech EQ Guide</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script defer src="./mobile-nav.js"></script>
+    <script defer src="./speech-presets.js"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'))
