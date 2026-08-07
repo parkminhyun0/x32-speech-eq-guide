@@ -1,0 +1,33 @@
+.tone-guide-panel { margin-top: 20px; }
+.tone-guide-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px; }
+.tone-guide-heading p { margin:8px 0 0; color:#8f9baa; line-height:1.55; }
+.tone-band-list { display:grid; gap:10px; }
+.tone-band-card { overflow:hidden; border:1px solid rgba(255,255,255,.08); border-radius:18px; background:#0d131b; }
+.tone-band-card.is-open { border-color:rgba(126,178,255,.42); background:#101924; }
+.tone-band-trigger { width:100%; min-height:58px; display:grid; grid-template-columns:92px 1fr 24px; align-items:center; gap:10px; padding:0 16px; border:0; color:#eef5ff; background:transparent; text-align:left; cursor:pointer; }
+.tone-range { color:#7eb2ff; font-weight:900; font-size:.84rem; }
+.tone-title { font-weight:800; }
+.tone-band-detail { display:grid; gap:12px; padding:0 16px 16px; }
+.tone-band-detail > div { display:grid; grid-template-columns:24px 1fr; gap:10px; align-items:start; }
+.tone-band-detail p { margin:0; color:#aab4c3; line-height:1.55; }
+.tone-band-detail strong { display:block; margin-bottom:3px; color:#f4f7fb; }
+.tone-warning { grid-template-columns:1fr 1fr !important; gap:10px !important; }
+.tone-warning p { padding:12px; border-radius:14px; background:#151d27; }
+.tone-direction { grid-template-columns:1fr !important; padding:13px 14px; border-radius:14px; background:rgba(31,111,235,.1); }
+.tone-direction span { color:#bdd4f7; line-height:1.55; }
+.mobile-action-dock { display:none; }
+@media (max-width:620px) {
+  body { padding-bottom:92px; }
+  .tone-guide-panel { padding:16px; }
+  .tone-guide-heading { margin-bottom:14px; }
+  .tone-band-trigger { min-height:64px; grid-template-columns:82px 1fr 24px; padding:0 14px; }
+  .tone-range { font-size:.78rem; }
+  .tone-title { font-size:.96rem; }
+  .tone-warning { grid-template-columns:1fr !important; }
+  .tone-band-detail { padding:0 14px 14px; }
+  .mobile-action-dock { position:fixed; left:10px; right:10px; bottom:10px; z-index:50; display:flex; gap:10px; padding:10px; border:1px solid rgba(255,255,255,.12); border-radius:18px; background:rgba(11,15,20,.92); backdrop-filter:blur(18px); box-shadow:0 16px 40px rgba(0,0,0,.35); }
+  .mobile-action-dock button { flex:1; min-height:52px; border:0; border-radius:14px; color:white; font-weight:900; }
+  .mobile-action-dock .mobile-primary { background:#1f6feb; }
+  .mobile-action-dock .mobile-danger { background:#c44545; }
+  .mobile-action-dock .mobile-secondary { flex:0 0 52px; background:#17202b; }
+}
