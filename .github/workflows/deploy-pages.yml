@@ -17,6 +17,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,7 +26,13 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies
-        run: npm install
+        timeout-minutes: 4
+        env:
+          npm_config_audit: false
+          npm_config_fund: false
+          npm_config_fetch_retries: 2
+          npm_config_fetch_timeout: 60000
+        run: npm install --no-audit --no-fund --prefer-offline
       - name: Build
         run: npm run build
       - name: Setup Pages
