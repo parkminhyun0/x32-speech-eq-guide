@@ -48,6 +48,24 @@
     bind(panel)
   }
 
+  function bindTap(element, handler) {
+    let lastPointerActivation = 0
+
+    element.addEventListener('pointerup', event => {
+      if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return
+      if (element.disabled) return
+      lastPointerActivation = Date.now()
+      event.preventDefault()
+      handler(event)
+    })
+
+    element.addEventListener('click', event => {
+      if (element.disabled) return
+      if (Date.now() - lastPointerActivation < 700) return
+      handler(event)
+    })
+  }
+
   function bind(panel) {
     const video = panel.querySelector('[data-live-video]')
     const start = panel.querySelector('[data-live-start]')
@@ -55,14 +73,14 @@
     const freeze = panel.querySelector('[data-live-freeze]')
     const averages = panel.querySelectorAll('[data-live-average]')
 
-    start.addEventListener('click', () => startMonitor(panel, video))
-    stop.addEventListener('click', () => stopMonitor(panel, video))
-    freeze.addEventListener('click', () => {
+    bindTap(start, () => startMonitor(panel, video))
+    bindTap(stop, () => stopMonitor(panel, video))
+    bindTap(freeze, () => {
       frozen = !frozen
       freeze.textContent = frozen ? '실시간 재개' : '화면 고정'
       panel.querySelector('[data-live-mode]').textContent = frozen ? '고정됨' : '실시간'
     })
-    averages.forEach(button => button.addEventListener('click', () => renderAverage(panel, Number(button.dataset.liveAverage))))
+    averages.forEach(button => bindTap(button, () => renderAverage(panel, Number(button.dataset.liveAverage))))
   }
 
   async function startMonitor(panel, video) {
