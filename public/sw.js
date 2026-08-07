@@ -1,5 +1,16 @@
-const CACHE_NAME = 'x32-speech-eq-guide-v1'
-const APP_SHELL = ['./', './index.html', './manifest.webmanifest', './app-icon.svg', './mobile-nav.css', './mobile-nav.js']
+const CACHE_NAME = 'x32-speech-eq-guide-v2'
+const APP_SHELL = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './app-icon.svg',
+  './mobile-nav.css',
+  './mobile-nav.js',
+  './speech-presets.css',
+  './speech-presets.js',
+  './measurement-confidence.css',
+  './measurement-confidence.js',
+]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)))
