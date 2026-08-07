@@ -1,11 +1,10 @@
-const CACHE_NAME = 'x32-speech-eq-guide-v6'
+const CACHE_NAME = 'x32-speech-eq-guide-v7'
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
   './app-icon.svg',
   './touch-controls.css',
-  './touch-controls.js',
   './mobile-nav.css',
   './mobile-nav.js',
   './speech-presets.css',
