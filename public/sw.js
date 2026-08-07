@@ -1,4 +1,4 @@
-const CACHE_NAME = 'x32-speech-eq-guide-v3'
+const CACHE_NAME = 'x32-speech-eq-guide-v4'
 const APP_SHELL = [
   './',
   './index.html',
@@ -12,6 +12,8 @@ const APP_SHELL = [
   './measurement-confidence.js',
   './x32-ocr.css',
   './x32-ocr.js',
+  './live-ipad-monitor.css',
+  './live-ipad-monitor.js',
 ]
 
 self.addEventListener('install', (event) => {
