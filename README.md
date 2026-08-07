@@ -1,2 +1,37 @@
-# x32-speech-eq-guide
-AI-assisted speech analysis and Behringer X32 EQ optimization for church preaching and live speech.
+# X32 Speech EQ Guide
+
+설교자의 실제 음성을 브라우저 마이크로 분석하고, Behringer X32 EQ 화면 및 설정과 대조하여 안전한 조정 순서를 안내하는 웹앱 MVP입니다.
+
+## MVP 범위
+
+- 실시간 마이크 입력
+- RMS 및 Peak 표시
+- 8개 음성 중심 주파수 대역 분석
+- 클리핑·저중역 과다·명료도 부족 후보 표시
+- X32 EQ 화면 이미지 업로드 UI
+- 안전한 EQ 조정 순서 안내
+- 데스크톱·태블릿·모바일 반응형 UI
+
+## 안전 원칙
+
+- 자동으로 X32 값을 변경하지 않습니다.
+- 한 번에 한 항목만 조정하고 동일 조건으로 재측정합니다.
+- 이미지 판독값은 사용자가 확인한 뒤 사용합니다.
+- 전문 음향 엔지니어의 현장 판단을 대체하지 않습니다.
+
+## 개발
+
+```bash
+npm install
+npm run dev
+```
+
+프로덕션 빌드:
+
+```bash
+npm run build
+```
+
+## 현재 단계
+
+MVP 0.1 — 실시간 음성 분석 화면과 X32 이미지 입력 기반을 구현 중입니다.
