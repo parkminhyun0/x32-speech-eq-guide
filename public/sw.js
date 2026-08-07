@@ -1,4 +1,4 @@
-const CACHE_NAME = 'x32-speech-eq-guide-v4'
+const CACHE_NAME = 'x32-speech-eq-guide-v5'
 const APP_SHELL = [
   './',
   './index.html',
