@@ -1,0 +1,12 @@
+.mobile-section-nav{display:none}
+@media (max-width:760px){
+  body{padding-bottom:148px}
+  .mobile-section-nav{position:fixed;left:12px;right:12px;bottom:76px;z-index:80;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:7px;background:rgba(12,17,24,.94);border:1px solid rgba(255,255,255,.12);border-radius:20px;box-shadow:0 14px 38px rgba(0,0,0,.42);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+  .mobile-section-nav button{min-width:0;min-height:52px;border:0;border-radius:14px;background:transparent;color:rgba(255,255,255,.7);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:inherit;touch-action:manipulation}
+  .mobile-section-nav button span{font-size:18px;line-height:1}
+  .mobile-section-nav button strong{font-size:11px;line-height:1.2;white-space:nowrap}
+  .mobile-section-nav button[aria-current="page"]{background:rgba(94,160,255,.18);color:#fff;box-shadow:inset 0 0 0 1px rgba(120,180,255,.28)}
+  .mobile-section-nav button:focus-visible{outline:3px solid rgba(115,180,255,.75);outline-offset:2px}
+  .panel,.control-grid article{scroll-margin-top:18px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
