@@ -1,16 +1,15 @@
-const CACHE_NAME = 'x32-speech-eq-guide-v8'
+const CACHE_NAME = 'x32-speech-eq-guide-v9'
 const APP_SHELL = [
-  './',
   './index.html',
   './manifest.webmanifest',
   './app-icon.svg',
-  './touch-controls.css?v=8',
-  './mobile-nav.css?v=8',
-  './mobile-nav.js?v=8',
-  './speech-presets.css?v=8',
-  './measurement-confidence.css?v=8',
-  './x32-ocr.css?v=8',
-  './live-ipad-monitor.css?v=8',
+  './touch-controls.css?v=9',
+  './mobile-nav.css?v=9',
+  './mobile-nav.js?v=9',
+  './speech-presets.css?v=9',
+  './measurement-confidence.css?v=9',
+  './x32-ocr.css?v=9',
+  './live-ipad-monitor.css?v=9',
 ]
 
 self.addEventListener('install', (event) => {
@@ -23,21 +22,29 @@ self.addEventListener('activate', (event) => {
     const keys = await caches.keys()
     await Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
     await self.clients.claim()
-
-    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-    await Promise.all(windows.map((client) => client.navigate(client.url)))
   })())
 })
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        const copy = response.clone()
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy))
-        return response
-      })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
-  )
+
+  event.respondWith((async () => {
+    try {
+      const response = await fetch(event.request)
+      const requestUrl = new URL(event.request.url)
+      if (response.ok && requestUrl.origin === self.location.origin) {
+        const cache = await caches.open(CACHE_NAME)
+        await cache.put(event.request, response.clone())
+      }
+      return response
+    } catch (error) {
+      const cached = await caches.match(event.request)
+      if (cached) return cached
+      if (event.request.mode === 'navigate') {
+        const fallback = await caches.match('./index.html')
+        if (fallback) return fallback
+      }
+      return Response.error()
+    }
+  })())
 })
