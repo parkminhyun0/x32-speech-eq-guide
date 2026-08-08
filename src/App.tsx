@@ -9,6 +9,7 @@ import SpeechPresetAdvisor from './SpeechPresetAdvisor'
 import ToneGuide from './ToneGuide'
 import X32EqConsole from './X32EqConsole'
 import X32Ocr from './X32Ocr'
+import { buildIntegratedEqSuggestion } from './eqIntegration'
 import {
   DEFAULT_PROFILE_ID,
   MODE_LABELS,
@@ -16,7 +17,7 @@ import {
   getEqProfile,
 } from './sourceProfiles'
 import type { EqProfile } from './sourceProfiles'
-import type { AnalysisResult, AudioState, EqBand, EqFilterType, Sample } from './types'
+import type { AnalysisResult, AudioState, EqBand, EqFilterType, LiveAnalysisEvidence, Sample } from './types'
 import './x32-controls.css'
 
 const MEASUREMENT_SECONDS = 30
@@ -45,8 +46,10 @@ export default function App() {
   const [audio, setAudio] = useState<AudioState>(emptyAudio)
   const [elapsed, setElapsed] = useState(0)
   const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [liveEvidence, setLiveEvidence] = useState<LiveAnalysisEvidence | null>(null)
   const [imageUrl, setImageUrl] = useState('')
   const [imageName, setImageName] = useState('')
+  const [ocrApplied, setOcrApplied] = useState(false)
   const [lowCutEnabled, setLowCutEnabled] = useState(defaultProfile.lowCutEnabled)
   const [lowCutFrequency, setLowCutFrequency] = useState(defaultProfile.lowCutFrequency)
   const [eqBands, setEqBands] = useState<EqBand[]>(cloneProfileBands(defaultProfile))
@@ -61,7 +64,7 @@ export default function App() {
   useEffect(() => () => stopHardware(), [])
 
   useEffect(() => () => {
-    if (imageUrl) URL.revokeObjectURL(imageUrl)
+    if (imageUrl.startsWith('blob:')) URL.revokeObjectURL(imageUrl)
   }, [imageUrl])
 
   async function startListening() {
@@ -218,12 +221,14 @@ export default function App() {
     if (!file) return
     setImageUrl(URL.createObjectURL(file))
     setImageName(file.name)
+    setOcrApplied(false)
     event.target.value = ''
   }
 
   function clearImage() {
     setImageUrl('')
     setImageName('')
+    setOcrApplied(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -248,6 +253,7 @@ export default function App() {
       setLowCutEnabled(true)
       setLowCutFrequency(lowCut)
     }
+    setOcrApplied(true)
   }
 
   function applySourceProfile(profile: EqProfile) {
@@ -255,6 +261,33 @@ export default function App() {
     setLowCutEnabled(profile.lowCutEnabled)
     setLowCutFrequency(profile.lowCutFrequency)
     setEqBands(cloneProfileBands(profile))
+    setOcrApplied(false)
+  }
+
+  function handleLiveEvidence(evidence: LiveAnalysisEvidence) {
+    setLiveEvidence(evidence)
+    if (evidence.frameDataUrl) {
+      setImageUrl(evidence.frameDataUrl)
+      setImageName(`Live X32 캡처 · ${new Date(evidence.capturedAt).toLocaleTimeString('ko-KR')}`)
+      setOcrApplied(false)
+    }
+  }
+
+  const integratedSuggestion = useMemo(() => buildIntegratedEqSuggestion({
+    result,
+    live: liveEvidence,
+    profile: activeProfile,
+    currentBands: eqBands,
+    lowCutEnabled,
+    lowCutFrequency,
+    ocrApplied,
+  }), [result, liveEvidence, activeProfile, eqBands, lowCutEnabled, lowCutFrequency, ocrApplied])
+
+  function applyIntegratedSuggestion() {
+    if (!integratedSuggestion || integratedSuggestion.blockedReason) return
+    setEqBands(integratedSuggestion.candidateBands.map((band) => ({ ...band })))
+    setLowCutEnabled(integratedSuggestion.candidateLowCutEnabled)
+    setLowCutFrequency(integratedSuggestion.candidateLowCutFrequency)
   }
 
   const crossChecks = useMemo(() => {
@@ -285,16 +318,22 @@ export default function App() {
   }, [result, eqBands, lowCutEnabled, lowCutFrequency, activeProfile])
 
   const remaining = Math.max(0, Math.ceil(MEASUREMENT_SECONDS - elapsed))
-  const status = isListening ? `${remaining}초 남음` : result ? `분석 완료 · ${result.score}점` : '30초 측정 대기'
+  const status = isListening
+    ? `${remaining}초 남음`
+    : integratedSuggestion
+      ? `통합 판단 · 신뢰도 ${integratedSuggestion.confidence}%`
+      : result
+        ? `분석 완료 · ${result.score}점`
+        : '30초 측정 대기'
   const modeLabel = MODE_LABELS[activeProfile.mode]
 
   return (
     <main className="app-shell">
       <header className="hero">
         <div>
-          <p className="eyebrow">X32 SOURCE EQ GUIDE · MVP 1.3</p>
-          <h1>{modeLabel} 기준 곡선과 실측 소리를<br />X32 화면에서 비교합니다.</h1>
-          <p className="hero-copy">설교자·보컬·악기 프로필을 선택하고 실제 X32 EQ 화면과 같은 배열에서 Frequency·Gain·Q·Mode를 조정합니다.</p>
+          <p className="eyebrow">X32 SOURCE EQ GUIDE · MVP 1.4</p>
+          <h1>{modeLabel} 기준·회중석 측정·X32 화면을<br />하나의 EQ 적용 화면에서 비교합니다.</h1>
+          <p className="hero-copy">30초 측정, Live 영상·음향, OCR 현재값을 통합하고 실제 X32 EQ 화면과 같은 배열에서 Frequency·Gain·Q·Mode를 직접 대조합니다.</p>
         </div>
         <div className="status-card">
           <Activity size={20} />
@@ -327,7 +366,7 @@ export default function App() {
           <div className="timer-card">
             <Clock3 size={20} />
             <div><span>측정 시간</span><strong>{elapsed.toFixed(1)} / 30초</strong></div>
-            <p>{isListening ? `${activeProfile.measurementLabel}을 평소 실제 레벨로 유지해 주세요.` : result ? '측정 완료. X32 화면의 RTA·EQ 값을 대조하세요.' : '최소 5초, 권장 30초입니다.'}</p>
+            <p>{isListening ? `${activeProfile.measurementLabel}을 평소 실제 레벨로 유지해 주세요.` : result ? '측정 완료. X32 통합 판단에 반영됐습니다.' : '최소 5초, 권장 30초입니다.'}</p>
           </div>
           <div className="meter-row">
             <div className="metric"><span>현재 RMS</span><strong>{audio.rms}%</strong></div>
@@ -360,7 +399,7 @@ export default function App() {
           <SingleTapButton className="upload-zone" onActivate={() => fileInputRef.current?.click()}>
             <Upload size={28} />
             <strong>EQ 화면 이미지 선택</strong>
-            <span>실제 X32 화면을 촬영하면 아래 동일 배열 인터페이스에 값을 옮길 수 있습니다.</span>
+            <span>직접 촬영하거나 Live Monitor에서 캡처한 화면을 OCR로 읽어 현재 X32 값에 반영합니다.</span>
           </SingleTapButton>
           {imageUrl && (
             <>
@@ -370,8 +409,8 @@ export default function App() {
             </>
           )}
           <div className="eq-preview">
-            <strong>입력 위치가 바뀌었습니다</strong>
-            <p>기존 표 입력 대신 아래 X32 동일 배열 화면에서 Low Cut과 4개 밴드를 직접 조정합니다.</p>
+            <strong>{ocrApplied ? 'OCR 현재값이 X32 동일 배열에 반영됨' : '촬영 화면은 OCR 검토 후 현재값으로 확정'}</strong>
+            <p>통합 판단은 현재 X32 값을 기준으로 회중석 측정 편차만큼 소폭 보정 후보를 계산합니다.</p>
           </div>
         </article>
       </section>
@@ -379,10 +418,14 @@ export default function App() {
       <X32EqConsole
         profileLabel={activeProfile.label}
         measuredBands={result?.averageBands}
-        liveBands={audio.bands}
+        liveBands={liveEvidence?.bands ?? audio.bands}
+        liveEvidence={liveEvidence}
+        integratedSuggestion={integratedSuggestion}
+        currentValueSource={ocrApplied ? 'OCR로 확인한 현재 X32 값' : '수동 입력·프로필 현재값'}
         eqBands={eqBands}
         lowCutEnabled={lowCutEnabled}
         lowCutFrequency={lowCutFrequency}
+        onApplyIntegratedSuggestion={applyIntegratedSuggestion}
         onLowCutEnabledChange={setLowCutEnabled}
         onLowCutFrequencyChange={setLowCutFrequency}
         onBandChange={updateEqBand}
@@ -424,14 +467,14 @@ export default function App() {
       {activeProfile.mode === 'preacher' && <ToneGuide />}
       {activeProfile.mode === 'preacher' && <SpeechPresetAdvisor result={result} eqBands={eqBands} />}
       <MeasurementConfidence result={result} />
-      <LiveIpadMonitor />
+      <LiveIpadMonitor onEvidence={handleLiveEvidence} />
 
       <section className="panel recommendation-panel">
         <div className="panel-heading compact"><div><span className="step">RULES</span><h2>공통 적용 원칙</h2></div></div>
         <div className="recommendations">
           <div><span>1</span><p><strong>Pre-EQ Gate</strong>Gain, 클리핑, 마이크·라우팅과 깨끗한 기준 상태를 먼저 확인합니다.</p></div>
-          <div><span>2</span><p><strong>X32 같은 순서</strong>Low Cut → Band → Freq → Gain → Q → Mode 순으로 직접 옮깁니다.</p></div>
-          <div><span>3</span><p><strong>소스와 시스템 분리</strong>채널 Tone EQ와 공간·Monitor·Main Feedback 처리를 구분합니다.</p></div>
+          <div><span>2</span><p><strong>통합 Evidence</strong>30초 측정·Live 평균·영상 캡처·OCR 현재값을 함께 확인합니다.</p></div>
+          <div><span>3</span><p><strong>X32 같은 순서</strong>Low Cut → Band → Freq → Gain → Q → Mode 순으로 직접 옮깁니다.</p></div>
         </div>
       </section>
 
@@ -442,7 +485,7 @@ export default function App() {
           {isListening ? '정지·분석' : '30초 측정'}
         </SingleTapButton>
       </div>
-      <footer>웹앱은 X32 EQ 화면과 같은 조작 순서로 값을 준비하지만 실제 믹서를 자동 변경하지 않습니다. X32에서 직접 적용한 뒤 동일 조건으로 A/B 재측정하세요.</footer>
+      <footer>현장 측정과 Live 캡처 결과는 X32 동일 배열의 보정 후보로 통합됩니다. 실제 믹서는 자동 변경하지 않으며, 후보를 검토해 반영한 뒤 X32에서 직접 입력하고 동일 조건으로 A/B 재측정합니다.</footer>
     </main>
   )
 }
