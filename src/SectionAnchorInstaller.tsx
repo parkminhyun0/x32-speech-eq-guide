@@ -15,6 +15,16 @@ function installAnchors() {
     const target = heading?.closest<HTMLElement>('section, article')
     if (target) target.id = id
   })
+
+  const broadcastContent = document.querySelector<HTMLElement>('.workflow-content#broadcast-workspace')
+  const workspaceSwitch = document.querySelector<HTMLElement>('.workspace-switch')
+  if (!workspaceSwitch) return
+
+  if (broadcastContent) {
+    if (workspaceSwitch.id === 'broadcast-workspace') workspaceSwitch.removeAttribute('id')
+  } else if (!document.getElementById('broadcast-workspace')) {
+    workspaceSwitch.id = 'broadcast-workspace'
+  }
 }
 
 export default function SectionAnchorInstaller() {
@@ -23,7 +33,7 @@ export default function SectionAnchorInstaller() {
     const root = document.getElementById('root')
     if (!root) return
     const observer = new MutationObserver(installAnchors)
-    observer.observe(root, { childList: true, subtree: true })
+    observer.observe(root, { childList: true, subtree: true, attributes: true })
     return () => observer.disconnect()
   }, [])
 
