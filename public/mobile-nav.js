@@ -3,12 +3,22 @@ const navItems = [
   { label: '소스', icon: '🎤', target: 'source-workspace' },
   { label: '측정', icon: '⏱', target: 'measurement-workspace' },
   { label: 'X32', icon: '🎚', target: 'x32-eq-workspace' },
+  { label: 'Live', icon: '📷', target: 'live-monitor-workspace', ariaLabel: '아이패드 X32 화면과 회중석 음향 Live Monitor로 이동' },
   { label: '방송', icon: '📡', target: 'broadcast-workspace', workspaceLabel: '유튜브 방송 믹스' },
 ]
 
 function findTarget(item) {
-  return document.getElementById(item.target)
-    || (item.target === 'broadcast-workspace' ? document.getElementById('workflow-hub') : null)
+  const directTarget = document.getElementById(item.target)
+  if (directTarget) return directTarget
+
+  if (item.target === 'broadcast-workspace') return document.getElementById('workflow-hub')
+  if (item.target === 'live-monitor-workspace') {
+    const heading = [...document.querySelectorAll('h2')]
+      .find((node) => node.textContent?.includes('아이패드 X32 화면 + 회중석 음향'))
+    return heading?.closest('section, article') || heading
+  }
+
+  return null
 }
 
 function activateWorkspace(item) {
@@ -50,6 +60,7 @@ function mountNavigation() {
   navItems.forEach((item, index) => {
     const button = document.createElement('button')
     button.type = 'button'
+    button.setAttribute('aria-label', item.ariaLabel || `${item.label} 위치로 이동`)
     button.innerHTML = `<span aria-hidden="true">${item.icon}</span><strong>${item.label}</strong>`
     bindTap(button, () => {
       activateWorkspace(item)
