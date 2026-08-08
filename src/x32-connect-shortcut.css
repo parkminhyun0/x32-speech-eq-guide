@@ -1,0 +1,6 @@
+.workflow-quick-nav .x32-connect-menu-button{grid-column:1/-1;display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:center;justify-content:start;gap:8px;min-height:52px;padding:10px 14px;border-color:rgba(57,213,169,.36);color:#d9fff3;background:linear-gradient(135deg,rgba(18,112,86,.42),rgba(22,61,72,.48));text-align:left}
+.workflow-quick-nav .x32-connect-menu-button svg{color:#55e1b6}
+.workflow-quick-nav .x32-connect-menu-button span{font-size:.82rem;font-weight:950}
+.workflow-quick-nav .x32-connect-menu-button small{justify-self:end;color:#86cdb9;font-size:.68rem;font-weight:900;letter-spacing:.05em}
+.workflow-quick-nav .x32-connect-menu-button:hover,.workflow-quick-nav .x32-connect-menu-button:focus-visible{border-color:rgba(85,225,182,.7);background:linear-gradient(135deg,rgba(25,139,105,.52),rgba(23,78,91,.56))}
+@media(max-width:720px){.workflow-quick-nav .x32-connect-menu-button{grid-column:1/-1;display:flex;min-height:50px;flex-direction:row;justify-content:center}.workflow-quick-nav .x32-connect-menu-button small{display:inline}}
