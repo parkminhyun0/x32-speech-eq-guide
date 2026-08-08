@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import ArchiveEqSuggestionOverlay from './ArchiveEqSuggestionOverlay'
 import LiveMonitorShortcut from './LiveMonitorShortcut'
 import LocalSecureContextNotice from './LocalSecureContextNotice'
 import LocationMeasurementWorkspace from './LocationMeasurementWorkspace'
@@ -21,5 +22,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <div className="x32-connect-root"><X32Connect /></div>
     <LocationMeasurementWorkspace />
     <App />
+    <ArchiveEqSuggestionOverlay />
   </React.StrictMode>,
 )
