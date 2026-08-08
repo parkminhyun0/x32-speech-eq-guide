@@ -5,6 +5,7 @@ import ArchiveEqSuggestionOverlay from './ArchiveEqSuggestionOverlay'
 import LiveMonitorShortcut from './LiveMonitorShortcut'
 import LocalSecureContextNotice from './LocalSecureContextNotice'
 import LocationMeasurementWorkspace from './LocationMeasurementWorkspace'
+import RealtimeX32Clock from './RealtimeX32Clock'
 import SectionAnchorInstaller from './SectionAnchorInstaller'
 import WorshipWorkflowHub from './WorshipWorkflowHub'
 import X32Connect from './X32Connect'
@@ -15,6 +16,7 @@ import './workflow-layout.css'
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <SectionAnchorInstaller />
+    <RealtimeX32Clock />
     <WorshipWorkflowHub />
     <X32ConnectMenuShortcut />
     <LiveMonitorShortcut />
