@@ -1,15 +1,15 @@
-const CACHE_NAME = 'x32-speech-eq-guide-v13'
+const CACHE_NAME = 'x32-speech-eq-guide-v14'
 const APP_SHELL = [
   './index.html',
   './manifest.webmanifest',
   './app-icon.svg',
-  './touch-controls.css?v=13',
-  './mobile-nav.css?v=13',
-  './mobile-nav.js?v=13',
-  './speech-presets.css?v=13',
-  './measurement-confidence.css?v=13',
-  './x32-ocr.css?v=13',
-  './live-ipad-monitor.css?v=13',
+  './touch-controls.css?v=14',
+  './mobile-nav.css?v=14',
+  './mobile-nav.js?v=14',
+  './speech-presets.css?v=14',
+  './measurement-confidence.css?v=14',
+  './x32-ocr.css?v=14',
+  './live-ipad-monitor.css?v=14',
 ]
 
 self.addEventListener('install', (event) => {

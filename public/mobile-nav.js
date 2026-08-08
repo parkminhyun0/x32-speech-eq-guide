@@ -1,15 +1,21 @@
 const navItems = [
-  { label: '측정', icon: '🎤', match: '30초 설교 음성 측정' },
-  { label: 'EQ', icon: '🎚', match: 'X32 EQ 화면·설정' },
-  { label: '분석', icon: '📊', match: '설교 음향 분석 결과', fallback: '설교 음성 기준' },
-  { label: '배우기', icon: '📚', match: '음역대', fallback: '적용 원칙' },
+  { label: '시작', icon: '⌂', target: 'workflow-hub' },
+  { label: '소스', icon: '🎤', target: 'source-workspace' },
+  { label: '측정', icon: '⏱', target: 'measurement-workspace' },
+  { label: 'X32', icon: '🎚', target: 'x32-eq-workspace' },
+  { label: '방송', icon: '📡', target: 'broadcast-workspace', workspaceLabel: '유튜브 방송 믹스' },
 ]
 
 function findTarget(item) {
-  const headings = [...document.querySelectorAll('h2')]
-  const heading = headings.find((node) => node.textContent?.includes(item.match))
-    || headings.find((node) => item.fallback && node.textContent?.includes(item.fallback))
-  return heading?.closest('section, article') || heading
+  return document.getElementById(item.target)
+    || (item.target === 'broadcast-workspace' ? document.getElementById('workflow-hub') : null)
+}
+
+function activateWorkspace(item) {
+  if (!item.workspaceLabel) return
+  const button = [...document.querySelectorAll('.workspace-switch button')]
+    .find((node) => node.textContent?.includes(item.workspaceLabel))
+  button?.click()
 }
 
 function bindTap(element, handler) {
@@ -35,23 +41,25 @@ function bindTap(element, handler) {
 
 function mountNavigation() {
   if (document.querySelector('.mobile-section-nav')) return
-  const main = document.querySelector('main')
-  if (!main) return
+  if (!document.querySelector('main')) return
 
   const nav = document.createElement('nav')
   nav.className = 'mobile-section-nav'
-  nav.setAttribute('aria-label', '주요 화면 이동')
+  nav.setAttribute('aria-label', '주요 기능 빠른 이동')
 
   navItems.forEach((item, index) => {
     const button = document.createElement('button')
     button.type = 'button'
     button.innerHTML = `<span aria-hidden="true">${item.icon}</span><strong>${item.label}</strong>`
     bindTap(button, () => {
-      const target = findTarget(item)
-      if (!target) return
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      nav.querySelectorAll('button').forEach((node) => node.removeAttribute('aria-current'))
-      button.setAttribute('aria-current', 'page')
+      activateWorkspace(item)
+      window.setTimeout(() => {
+        const target = findTarget(item)
+        if (!target) return
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        nav.querySelectorAll('button').forEach((node) => node.removeAttribute('aria-current'))
+        button.setAttribute('aria-current', 'page')
+      }, 0)
     })
     if (index === 0) button.setAttribute('aria-current', 'page')
     nav.appendChild(button)
