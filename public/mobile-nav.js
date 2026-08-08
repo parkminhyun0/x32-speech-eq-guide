@@ -1,7 +1,8 @@
 const navItems = [
   { label: '시작', icon: '⌂', target: 'workflow-hub' },
   { label: '소스', icon: '🎤', target: 'source-workspace' },
-  { label: '측정', icon: '⏱', target: 'measurement-workspace' },
+  { label: '기본 측정', icon: '⏱', target: 'measurement-workspace' },
+  { label: '위치 측정', icon: '◫', target: 'location-measurement-workspace', ariaLabel: '9개 회중석 위치 누적 측정 화면으로 이동' },
   { label: 'X32 EQ', icon: '🎚', target: 'x32-eq-workspace' },
   { label: 'X32 연결', icon: '🔗', target: 'x32-connect', ariaLabel: 'X32 Direct Connect 읽기 전용 연결 화면으로 이동' },
   { label: 'Live', icon: '📷', target: 'live-monitor-workspace', ariaLabel: '아이패드 X32 화면과 회중석 음향 Live Monitor로 이동' },
