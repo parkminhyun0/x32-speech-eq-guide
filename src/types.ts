@@ -18,7 +18,7 @@ export type AnalysisResult = {
   recommendations: string[]
 }
 
-export type EqFilterType = 'PEQ' | 'LowShelf' | 'HighShelf'
+export type EqFilterType = 'LowCut' | 'LowShelf' | 'PEQ' | 'VEQ' | 'HighShelf' | 'HighCut'
 
 export type EqBand = {
   name: string
