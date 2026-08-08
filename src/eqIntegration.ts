@@ -96,8 +96,9 @@ export function buildIntegratedEqSuggestion({
   if (!notes.length) notes.push('프로필 비교 중심과 큰 편차가 없습니다. 현재값을 유지하고 다른 위치에서 A/B 확인하세요.')
   if (live?.frameDataUrl && !ocrApplied) notes.push('Live 캡처 화면이 OCR 입력으로 연결됐습니다. 숫자 읽기 후 현재 X32 값과 다시 통합하세요.')
 
-  const candidateBands = currentBands.map((band) => {
-    const rtaIndex = nearestRtaIndex(band.frequency)
+  const candidateBands = currentBands.map((band, index) => {
+    const profileBand = profile.eqBands[index] ?? band
+    const rtaIndex = nearestRtaIndex(profileBand.frequency)
     const deviation = combinedBands[rtaIndex] - profile.targetCenter[rtaIndex]
     const adjustment = Math.abs(deviation) < 7
       ? 0
@@ -105,14 +106,17 @@ export function buildIntegratedEqSuggestion({
 
     return {
       ...band,
-      gain: clamp(roundToQuarter(band.gain + adjustment), -15, 15),
+      frequency: profileBand.frequency,
+      q: profileBand.q,
+      filterType: profileBand.filterType ?? band.filterType,
+      gain: clamp(roundToQuarter(profileBand.gain + adjustment), -15, 15),
     }
   })
 
   return {
     candidateBands,
-    candidateLowCutEnabled: lowCutEnabled || profile.lowCutEnabled,
-    candidateLowCutFrequency: lowCutEnabled ? lowCutFrequency : profile.lowCutFrequency,
+    candidateLowCutEnabled: profile.lowCutEnabled || lowCutEnabled,
+    candidateLowCutFrequency: profile.lowCutEnabled ? profile.lowCutFrequency : lowCutFrequency,
     combinedBands,
     confidence: Math.min(95, confidence),
     evidenceLabels,
