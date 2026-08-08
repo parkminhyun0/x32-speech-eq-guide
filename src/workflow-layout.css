@@ -1,0 +1,2 @@
+.worship-workflow-hub{width:min(1180px,calc(100% - 32px));margin:28px auto 0}
+@media(max-width:620px){.worship-workflow-hub{width:min(100% - 20px,1180px);margin-top:16px}}
