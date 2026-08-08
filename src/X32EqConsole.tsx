@@ -1,15 +1,20 @@
 import { useMemo, useState } from 'react'
 import SingleTapButton from './SingleTapButton'
-import type { EqBand, EqFilterType } from './types'
+import type { EqBand, EqFilterType, IntegratedEqSuggestion, LiveAnalysisEvidence } from './types'
 import './x32-eq-console.css'
+import './integrated-eq.css'
 
 type Props = {
   profileLabel: string
   measuredBands?: number[]
   liveBands?: number[]
+  liveEvidence?: LiveAnalysisEvidence | null
+  integratedSuggestion?: IntegratedEqSuggestion | null
+  currentValueSource: string
   eqBands: EqBand[]
   lowCutEnabled: boolean
   lowCutFrequency: number
+  onApplyIntegratedSuggestion: () => void
   onLowCutEnabledChange: (enabled: boolean) => void
   onLowCutFrequencyChange: (frequency: number) => void
   onBandChange: (index: number, field: 'frequency' | 'gain' | 'q', value: number) => void
@@ -65,6 +70,10 @@ function formatFrequency(value: number) {
   if (value >= 10000) return `${(value / 1000).toFixed(1)}k`
   if (value >= 1000) return `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 2)}k`
   return `${Math.round(value)}`
+}
+
+function formatGain(value: number) {
+  return `${value > 0 ? '+' : ''}${value.toFixed(2)} dB`
 }
 
 function filterContribution(frequency: number, band: EqBand) {
@@ -149,13 +158,93 @@ function X32Knob({ label, value, min, max, step, unit = '', accent = '#f4f4f4', 
   )
 }
 
+function IntegratedDecision({
+  suggestion,
+  currentBands,
+  currentValueSource,
+  liveEvidence,
+  onApply,
+}: {
+  suggestion?: IntegratedEqSuggestion | null
+  currentBands: EqBand[]
+  currentValueSource: string
+  liveEvidence?: LiveAnalysisEvidence | null
+  onApply: () => void
+}) {
+  if (!suggestion) {
+    return (
+      <div className="integrated-decision is-empty">
+        <div><span>통합 EQ 판단</span><strong>측정 근거 대기</strong></div>
+        <p>회중석 30초 측정 또는 Live Monitor에서 `X32 화면·음향 통합`을 실행하면 현재 X32 값과 보정 후보가 이곳에 표시됩니다.</p>
+      </div>
+    )
+  }
+
+  return (
+    <section className="integrated-decision" aria-label="통합 EQ 판단 결과">
+      <div className="integrated-heading">
+        <div><span>FIELD + LIVE + X32</span><h3>현장 결과를 X32 동일 배열에 반영</h3><p>{currentValueSource}을 기준으로 회중석 편차만큼 소폭 보정합니다.</p></div>
+        <strong className="integrated-confidence">신뢰도 {suggestion.confidence}%</strong>
+      </div>
+
+      <div className="integrated-evidence-list">
+        {suggestion.evidenceLabels.map((label) => <span key={label}>{label}</span>)}
+      </div>
+
+      <div className="integrated-body">
+        {liveEvidence?.frameDataUrl && (
+          <figure className="integrated-frame">
+            <img src={liveEvidence.frameDataUrl} alt="Live Monitor에서 캡처한 아이패드 X32 화면" />
+            <figcaption>{liveEvidence.mode} · RMS {liveEvidence.rms}% · Peak {liveEvidence.peak}%</figcaption>
+          </figure>
+        )}
+        <div className="integrated-notes">
+          {suggestion.notes.map((note) => <p key={note}>{note}</p>)}
+        </div>
+      </div>
+
+      <div className="integrated-band-table">
+        <div className="integrated-band-row is-header"><span>Band</span><span>현재 X32</span><span>통합 후보</span><span>변화</span></div>
+        {suggestion.candidateBands.map((candidate, index) => {
+          const current = currentBands[index]
+          const delta = candidate.gain - current.gain
+          return (
+            <div className="integrated-band-row" key={`${candidate.name}-${index}`}>
+              <span><b>{index + 1}</b>{BAND_META[index]?.label}</span>
+              <span>{formatFrequency(current.frequency)}Hz · {formatGain(current.gain)} · Q {current.q.toFixed(1)}</span>
+              <span>{formatFrequency(candidate.frequency)}Hz · {formatGain(candidate.gain)} · Q {candidate.q.toFixed(1)}</span>
+              <strong className={delta === 0 ? '' : delta > 0 ? 'is-boost' : 'is-cut'}>{delta > 0 ? '+' : ''}{delta.toFixed(2)}dB</strong>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="integrated-lowcut-row">
+        <span>LOW CUT</span>
+        <strong>{suggestion.candidateLowCutEnabled ? `${suggestion.candidateLowCutFrequency}Hz ON` : 'OFF'}</strong>
+        <small>성별이 아니라 선택 프로필·마이크·실측 근거를 확인한 출발점</small>
+      </div>
+
+      {suggestion.blockedReason && <p className="integrated-blocked">⚠️ {suggestion.blockedReason}</p>}
+      <div className="integrated-actions">
+        <SingleTapButton disabled={Boolean(suggestion.blockedReason)} onActivate={onApply}>통합 후보를 아래 X32 조절값에 반영</SingleTapButton>
+        <p>반영 후 실제 X32에서 같은 Band·Freq·Gain·Q·Mode를 입력하고 반드시 A/B 재측정하세요.</p>
+      </div>
+    </section>
+  )
+}
+
 export default function X32EqConsole({
   profileLabel,
   measuredBands,
   liveBands,
+  liveEvidence,
+  integratedSuggestion,
+  currentValueSource,
   eqBands,
   lowCutEnabled,
   lowCutFrequency,
+  onApplyIntegratedSuggestion,
   onLowCutEnabledChange,
   onLowCutFrequencyChange,
   onBandChange,
@@ -172,6 +261,19 @@ export default function X32EqConsole({
     const gain = eqEnabled ? responseAt(frequency, eqBands, lowCutEnabled, lowCutFrequency) : 0
     return `${xForFrequency(frequency)},${yForGain(gain)}`
   }).join(' '), [eqBands, eqEnabled, lowCutEnabled, lowCutFrequency])
+
+  const candidateCurvePoints = useMemo(() => {
+    if (!integratedSuggestion) return ''
+    return GRAPH_FREQUENCIES.map((frequency) => {
+      const gain = responseAt(
+        frequency,
+        integratedSuggestion.candidateBands,
+        integratedSuggestion.candidateLowCutEnabled,
+        integratedSuggestion.candidateLowCutFrequency,
+      )
+      return `${xForFrequency(frequency)},${yForGain(gain)}`
+    }).join(' ')
+  }, [integratedSuggestion])
 
   function resetSelectedBand() {
     onBandChange(selectedBand, 'gain', 0)
@@ -204,10 +306,18 @@ export default function X32EqConsole({
         <div>
           <span className="step">X32 EQ</span>
           <h2>X32 채널 EQ 동일 배열</h2>
-          <p>화면 아래 6개 컨트롤의 순서와 값을 X32에서 그대로 따라 입력할 수 있습니다.</p>
+          <p>현장 측정·Live 영상/음향·OCR 현재값을 통합하고, 화면 아래 6개 컨트롤 순서대로 실제 X32에 옮깁니다.</p>
         </div>
-        <span className="x32-transfer-badge">1차 적용 화면</span>
+        <span className="x32-transfer-badge">통합 적용 화면</span>
       </div>
+
+      <IntegratedDecision
+        suggestion={integratedSuggestion}
+        currentBands={eqBands}
+        currentValueSource={currentValueSource}
+        liveEvidence={liveEvidence}
+        onApply={onApplyIntegratedSuggestion}
+      />
 
       <div className="x32-console-shell">
         <div className="x32-screen-frame">
@@ -252,6 +362,7 @@ export default function X32EqConsole({
                   const height = clamp(value, 0, 100) * 2.25
                   return <rect key={`${RTA_FREQUENCIES[index]}-${index}`} x={x - 19} y={268 - height} width="38" height={height} className="x32-rta-bar" opacity={rtaMode === 'SPEC' ? 0.55 + index * 0.04 : 0.82} />
                 })}
+                {candidateCurvePoints && <polyline points={candidateCurvePoints} className="x32-candidate-curve" />}
                 <polyline points={curvePoints} className="x32-eq-curve" />
                 {eqBands.map((band, index) => {
                   const color = BAND_META[index]?.color ?? '#fff'
@@ -264,6 +375,7 @@ export default function X32EqConsole({
                   )
                 })}
               </svg>
+              {integratedSuggestion && <div className="x32-curve-legend"><span>실선 현재값</span><span>점선 통합 후보</span></div>}
             </div>
 
             <div className="x32-band-stack" aria-label="X32 band selection">
@@ -293,7 +405,7 @@ export default function X32EqConsole({
                 >
                   <span className="x32-band-card-title"><b>{index + 1}</b>{meta.label}</span>
                   <span><small>FREQ</small><strong>{formatFrequency(band.frequency)} Hz</strong></span>
-                  <span><small>GAIN</small><strong>{band.gain > 0 ? '+' : ''}{band.gain.toFixed(2)} dB</strong></span>
+                  <span><small>GAIN</small><strong>{formatGain(band.gain)}</strong></span>
                   <span><small>Q</small><strong>{band.q.toFixed(1)}</strong></span>
                   <span><small>MODE</small><strong>{MODE_LABEL[band.filterType ?? 'PEQ']}</strong></span>
                 </SingleTapButton>
@@ -343,7 +455,7 @@ export default function X32EqConsole({
         <strong>X32에 옮기는 순서</strong>
         <span>① EQ VIEW</span><span>② LOW CUT</span><span>③ 밴드 SELECT</span><span>④ FREQ</span><span>⑤ GAIN</span><span>⑥ Q</span><span>⑦ MODE</span>
       </div>
-      <p className="x32-console-note">웹앱의 조작은 실제 X32로 자동 전송되지 않습니다. 화면의 값과 순서를 보고 X32에서 직접 적용한 뒤 동일 조건으로 A/B 재측정합니다.</p>
+      <p className="x32-console-note">실선은 현재 X32 입력값, 점선은 현장·Live 통합 후보입니다. 후보를 반영해도 실제 X32로 자동 전송되지 않으며, 화면의 값과 순서를 보고 직접 적용한 뒤 동일 조건으로 A/B 재측정합니다.</p>
     </section>
   )
 }

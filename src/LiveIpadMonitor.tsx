@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import SingleTapButton from './SingleTapButton'
+import type { LiveAnalysisEvidence } from './types'
 
 const frequencies = [80, 125, 250, 500, 1000, 2000, 4000, 8000]
 const labels = ['80', '125', '250', '500', '1k', '2k', '4k', '8k']
@@ -11,11 +12,15 @@ type HistoryRow = {
   peak: number
 }
 
+type Props = {
+  onEvidence?: (evidence: LiveAnalysisEvidence) => void
+}
+
 type WebkitWindow = Window & typeof globalThis & {
   webkitAudioContext?: typeof AudioContext
 }
 
-export default function LiveIpadMonitor() {
+export default function LiveIpadMonitor({ onEvidence }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
@@ -23,6 +28,7 @@ export default function LiveIpadMonitor() {
   const rafRef = useRef(0)
   const historyRef = useRef<HistoryRow[]>([])
   const frozenRef = useRef(false)
+  const currentRef = useRef({ bands: Array(8).fill(0) as number[], rms: 0, peak: 0, mode: '실시간' })
 
   const [active, setActive] = useState(false)
   const [frozen, setFrozen] = useState(false)
@@ -48,6 +54,7 @@ export default function LiveIpadMonitor() {
 
   function resetUi() {
     frozenRef.current = false
+    currentRef.current = { bands: Array(8).fill(0), rms: 0, peak: 0, mode: '실시간' }
     setFrozen(false)
     setActive(false)
     setStatus('대기')
@@ -146,6 +153,7 @@ export default function LiveIpadMonitor() {
   }
 
   function renderValues(nextBands: number[], nextRms: number, nextPeak: number, nextMode: string) {
+    currentRef.current = { bands: [...nextBands], rms: nextRms, peak: nextPeak, mode: nextMode }
     setBands(nextBands)
     setRms(nextRms)
     setPeak(nextPeak)
@@ -164,7 +172,9 @@ export default function LiveIpadMonitor() {
     const next = !frozenRef.current
     frozenRef.current = next
     setFrozen(next)
-    setMode(next ? '고정됨' : '실시간')
+    const nextMode = next ? '고정됨' : '실시간'
+    currentRef.current = { ...currentRef.current, mode: nextMode }
+    setMode(nextMode)
   }
 
   function renderAverage(seconds: number) {
@@ -179,8 +189,39 @@ export default function LiveIpadMonitor() {
     renderValues(nextBands, nextRms, nextPeak, `${seconds}초 평균`)
   }
 
+  function captureFrame() {
+    const video = videoRef.current
+    if (!video || !video.videoWidth || !video.videoHeight) return undefined
+    const width = Math.min(1280, video.videoWidth)
+    const height = Math.round(width * video.videoHeight / video.videoWidth)
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext('2d')
+    if (!context) return undefined
+    context.drawImage(video, 0, 0, width, height)
+    return canvas.toDataURL('image/jpeg', 0.86)
+  }
+
+  function integrateEvidence() {
+    if (!active) return
+    const current = currentRef.current
+    const evidence: LiveAnalysisEvidence = {
+      capturedAt: Date.now(),
+      mode: current.mode,
+      rms: current.rms,
+      peak: current.peak,
+      bands: [...current.bands],
+      frameDataUrl: captureFrame(),
+    }
+    onEvidence?.(evidence)
+    setStatus('통합됨')
+    setGuidance(`${current.mode} 값과 아이패드 X32 화면을 통합 EQ 판단으로 전달했습니다. 아래 X32 동일 배열에서 현재값과 보정 후보를 비교하세요.`)
+    window.setTimeout(() => document.getElementById('x32-eq-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
+  }
+
   return (
-    <section className="panel live-ipad-monitor">
+    <section className="panel live-ipad-monitor" id="live-monitor-workspace">
       <div className="panel-heading compact">
         <div><span className="step">LIVE</span><h2>아이패드 X32 화면 + 회중석 음향</h2></div>
         <span className={`live-status ${active ? 'active' : ''}`}>{status}</span>
@@ -211,11 +252,12 @@ export default function LiveIpadMonitor() {
         <SingleTapButton disabled={!active} onActivate={toggleFreeze}>{frozen ? '실시간 재개' : '화면 고정'}</SingleTapButton>
         <SingleTapButton disabled={!active} onActivate={() => renderAverage(3)}>3초 평균</SingleTapButton>
         <SingleTapButton disabled={!active} onActivate={() => renderAverage(10)}>10초 평균</SingleTapButton>
+        <SingleTapButton className="live-primary" disabled={!active} onActivate={integrateEvidence}>X32 화면·음향 통합</SingleTapButton>
         <SingleTapButton disabled={!active} onActivate={stopMonitor}>종료</SingleTapButton>
       </div>
       <div className="live-guidance">
         <p><strong>{mode}</strong> {guidance}</p>
-        <p>이 결과는 아이폰 마이크의 상대 비교값이며, 절대 SPL·STI·하울링 여유를 확정하지 않습니다.</p>
+        <p>이 결과는 아이폰 마이크의 상대 비교값이며, 절대 SPL·STI·하울링 여유를 확정하지 않습니다. 캡처 화면의 숫자는 OCR 검토 후 현재 X32 값으로 확정합니다.</p>
       </div>
     </section>
   )
