@@ -5,6 +5,7 @@ const anchors = [
   { id: 'measurement-workspace', match: '30초' },
   { id: 'x32-eq-workspace', match: 'X32 채널 EQ 동일 배열' },
   { id: 'confidence-workspace', match: '측정 신뢰도' },
+  { id: 'live-monitor-workspace', match: '아이패드 X32 화면 + 회중석 음향' },
 ]
 
 function installAnchors() {
