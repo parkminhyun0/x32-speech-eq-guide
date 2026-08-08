@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import LiveMonitorShortcut from './LiveMonitorShortcut'
+import LocalSecureContextNotice from './LocalSecureContextNotice'
 import SectionAnchorInstaller from './SectionAnchorInstaller'
 import WorshipWorkflowHub from './WorshipWorkflowHub'
 import X32Connect from './X32Connect'
@@ -13,6 +14,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <SectionAnchorInstaller />
     <WorshipWorkflowHub />
     <LiveMonitorShortcut />
+    <LocalSecureContextNotice />
     <div className="x32-connect-root"><X32Connect /></div>
     <App />
   </React.StrictMode>,
