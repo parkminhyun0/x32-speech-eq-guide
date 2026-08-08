@@ -9,23 +9,23 @@
     <meta name="apple-mobile-web-app-title" content="X32 EQ Guide" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./app-icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./touch-controls.css?v=9" />
-    <link rel="stylesheet" href="./mobile-nav.css?v=9" />
-    <link rel="stylesheet" href="./speech-presets.css?v=9" />
-    <link rel="stylesheet" href="./measurement-confidence.css?v=9" />
-    <link rel="stylesheet" href="./x32-ocr.css?v=9" />
-    <link rel="stylesheet" href="./live-ipad-monitor.css?v=9" />
-    <title>X32 Speech EQ Guide</title>
+    <link rel="stylesheet" href="./touch-controls.css?v=10" />
+    <link rel="stylesheet" href="./mobile-nav.css?v=10" />
+    <link rel="stylesheet" href="./speech-presets.css?v=10" />
+    <link rel="stylesheet" href="./measurement-confidence.css?v=10" />
+    <link rel="stylesheet" href="./x32-ocr.css?v=10" />
+    <link rel="stylesheet" href="./live-ipad-monitor.css?v=10" />
+    <title>X32 Source EQ Guide</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script defer src="./mobile-nav.js?v=9"></script>
+    <script defer src="./mobile-nav.js?v=10"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
-            .register('./sw.js?v=9', { updateViaCache: 'none' })
+            .register('./sw.js?v=10', { updateViaCache: 'none' })
             .then((registration) => registration.update())
             .catch((error) => console.warn('Service worker registration failed', error))
         })
