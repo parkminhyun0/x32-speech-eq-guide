@@ -28,3 +28,5 @@ jobs:
         run: npm install --no-audit --no-fund --prefer-offline
       - name: Typecheck and build
         run: npm run build
+      - name: X32 Bridge protocol self-test
+        run: npm run bridge:test
