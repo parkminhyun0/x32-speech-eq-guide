@@ -18,9 +18,14 @@ export type AnalysisResult = {
   recommendations: string[]
 }
 
+export type EqFilterType = 'PEQ' | 'LowShelf' | 'HighShelf'
+
 export type EqBand = {
   name: string
   frequency: number
   gain: number
   q: number
+  filterType?: EqFilterType
 }
+
+export type SourceMode = 'preacher' | 'vocal' | 'instrument'
