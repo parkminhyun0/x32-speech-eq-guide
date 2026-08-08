@@ -1,0 +1,8 @@
+.live-monitor-shortcut-bar{width:min(1180px,calc(100% - 32px));margin:8px auto 0;display:flex;justify-content:flex-end}
+.live-monitor-shortcut-button{display:flex;align-items:center;gap:12px;width:min(100%,430px);min-height:58px;padding:10px 14px;border:1px solid rgba(92,173,255,.28);border-radius:17px;color:#dcecff;background:linear-gradient(135deg,rgba(25,73,126,.66),rgba(12,27,44,.92));box-shadow:0 12px 30px rgba(0,0,0,.22);text-align:left;font:inherit;touch-action:manipulation}
+.live-monitor-shortcut-button:hover,.live-monitor-shortcut-button:focus-visible{border-color:rgba(119,190,255,.65);background:linear-gradient(135deg,rgba(35,101,174,.72),rgba(17,42,69,.96))}
+.live-monitor-shortcut-icon{display:flex;align-items:center;justify-content:center;gap:3px;flex:0 0 auto;width:50px;height:40px;border-radius:12px;color:#8ec5ff;background:rgba(80,151,230,.16)}
+.live-monitor-shortcut-copy{display:grid;gap:3px;min-width:0}
+.live-monitor-shortcut-copy strong{color:#f4f8ff;font-size:.88rem;line-height:1.25;word-break:keep-all}
+.live-monitor-shortcut-copy small{color:#91a6bc;font-size:.72rem;line-height:1.3}
+@media(max-width:760px){.live-monitor-shortcut-bar{display:none}}
