@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import LiveMonitorShortcut from './LiveMonitorShortcut'
 import LocalSecureContextNotice from './LocalSecureContextNotice'
+import LocationMeasurementWorkspace from './LocationMeasurementWorkspace'
 import SectionAnchorInstaller from './SectionAnchorInstaller'
 import WorshipWorkflowHub from './WorshipWorkflowHub'
 import X32Connect from './X32Connect'
@@ -18,6 +19,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <LiveMonitorShortcut />
     <LocalSecureContextNotice />
     <div className="x32-connect-root"><X32Connect /></div>
+    <LocationMeasurementWorkspace />
     <App />
   </React.StrictMode>,
 )
