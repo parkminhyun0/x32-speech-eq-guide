@@ -9,4 +9,11 @@
   .mobile-section-nav button:focus-visible{outline:3px solid rgba(115,180,255,.75);outline-offset:2px}
   .panel,.control-grid article{scroll-margin-top:18px}
 }
+@media (max-width:680px){
+  .panel-heading.compact.x32-console-heading{display:flex;flex-direction:column;align-items:stretch;gap:14px;width:100%;min-width:0}
+  .panel-heading.compact.x32-console-heading>div{display:block;flex:0 0 auto;width:100%;min-width:0;max-width:100%}
+  .panel-heading.compact.x32-console-heading .step,.panel-heading.compact.x32-console-heading h2,.panel-heading.compact.x32-console-heading p{display:block;width:100%;max-width:100%;writing-mode:horizontal-tb;text-orientation:mixed;word-break:keep-all;overflow-wrap:break-word;white-space:normal}
+  .panel-heading.compact.x32-console-heading h2{margin-top:6px;line-height:1.2}
+  .panel-heading.compact.x32-console-heading .x32-transfer-badge{display:block;flex:0 0 auto;width:100%;max-width:100%;white-space:normal}
+}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
