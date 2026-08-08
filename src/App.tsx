@@ -7,6 +7,7 @@ import SingleTapButton from './SingleTapButton'
 import SourceModeWorkspace from './SourceModeWorkspace'
 import SpeechPresetAdvisor from './SpeechPresetAdvisor'
 import ToneGuide from './ToneGuide'
+import X32EqConsole from './X32EqConsole'
 import X32Ocr from './X32Ocr'
 import {
   DEFAULT_PROFILE_ID,
@@ -291,9 +292,9 @@ export default function App() {
     <main className="app-shell">
       <header className="hero">
         <div>
-          <p className="eyebrow">X32 SOURCE EQ GUIDE · MVP 1.2</p>
-          <h1>{modeLabel} 기준 곡선과 실측 소리를<br />한 화면에서 비교합니다.</h1>
-          <p className="hero-copy">설교자·보컬·악기 프로필을 선택하고 30초 실측, 현재 X32 설정, 보수적인 시작값을 겹쳐 보며 최적화합니다.</p>
+          <p className="eyebrow">X32 SOURCE EQ GUIDE · MVP 1.3</p>
+          <h1>{modeLabel} 기준 곡선과 실측 소리를<br />X32 화면에서 비교합니다.</h1>
+          <p className="hero-copy">설교자·보컬·악기 프로필을 선택하고 실제 X32 EQ 화면과 같은 배열에서 Frequency·Gain·Q·Mode를 조정합니다.</p>
         </div>
         <div className="status-card">
           <Activity size={20} />
@@ -326,7 +327,7 @@ export default function App() {
           <div className="timer-card">
             <Clock3 size={20} />
             <div><span>측정 시간</span><strong>{elapsed.toFixed(1)} / 30초</strong></div>
-            <p>{isListening ? `${activeProfile.measurementLabel}을 평소 실제 레벨로 유지해 주세요.` : result ? '측정 완료. 아래 곡선과 X32 설정을 대조하세요.' : '최소 5초, 권장 30초입니다.'}</p>
+            <p>{isListening ? `${activeProfile.measurementLabel}을 평소 실제 레벨로 유지해 주세요.` : result ? '측정 완료. X32 화면의 RTA·EQ 값을 대조하세요.' : '최소 5초, 권장 30초입니다.'}</p>
           </div>
           <div className="meter-row">
             <div className="metric"><span>현재 RMS</span><strong>{audio.rms}%</strong></div>
@@ -344,7 +345,7 @@ export default function App() {
 
         <article className="panel upload-panel">
           <div className="panel-heading compact">
-            <div><span className="step">02</span><h2>X32 EQ 화면·설정</h2></div>
+            <div><span className="step">02</span><h2>X32 화면 촬영·OCR</h2></div>
             <SlidersHorizontal size={22} />
           </div>
           <input
@@ -359,7 +360,7 @@ export default function App() {
           <SingleTapButton className="upload-zone" onActivate={() => fileInputRef.current?.click()}>
             <Upload size={28} />
             <strong>EQ 화면 이미지 선택</strong>
-            <span>휴대폰 촬영 또는 화면 캡처를 사용할 수 있습니다.</span>
+            <span>실제 X32 화면을 촬영하면 아래 동일 배열 인터페이스에 값을 옮길 수 있습니다.</span>
           </SingleTapButton>
           {imageUrl && (
             <>
@@ -368,28 +369,25 @@ export default function App() {
               <SingleTapButton className="clear-image" onActivate={clearImage}>이미지 지우기</SingleTapButton>
             </>
           )}
-          <div className="eq-form">
-            <div className="lowcut-row">
-              <label><input type="checkbox" checked={lowCutEnabled} onChange={(event) => setLowCutEnabled(event.target.checked)} />Low Cut 사용</label>
-              <label>Hz <input type="number" inputMode="numeric" min="20" max="400" value={lowCutFrequency} onChange={(event) => setLowCutFrequency(Number(event.target.value))} /></label>
-            </div>
-            <div className="eq-form-header"><span>Band</span><span>Type</span><span>Freq</span><span>Gain</span><span>Q</span></div>
-            {eqBands.map((band, index) => (
-              <div className="eq-band-row" key={band.name}>
-                <strong>{band.name}</strong>
-                <select aria-label={`${band.name} filter type`} value={band.filterType ?? 'PEQ'} onChange={(event) => updateEqFilterType(index, event.target.value as EqFilterType)}>
-                  <option value="PEQ">PEQ</option>
-                  <option value="LowShelf">Low Shelf</option>
-                  <option value="HighShelf">High Shelf</option>
-                </select>
-                <input aria-label={`${band.name} frequency`} type="number" inputMode="numeric" value={band.frequency} onChange={(event) => updateEqBand(index, 'frequency', Number(event.target.value))} />
-                <input aria-label={`${band.name} gain`} type="number" inputMode="decimal" step="0.5" value={band.gain} onChange={(event) => updateEqBand(index, 'gain', Number(event.target.value))} />
-                <input aria-label={`${band.name} q`} type="number" inputMode="decimal" step="0.1" min="0.3" max="10" value={band.q} onChange={(event) => updateEqBand(index, 'q', Number(event.target.value))} />
-              </div>
-            ))}
+          <div className="eq-preview">
+            <strong>입력 위치가 바뀌었습니다</strong>
+            <p>기존 표 입력 대신 아래 X32 동일 배열 화면에서 Low Cut과 4개 밴드를 직접 조정합니다.</p>
           </div>
         </article>
       </section>
+
+      <X32EqConsole
+        profileLabel={activeProfile.label}
+        measuredBands={result?.averageBands}
+        liveBands={audio.bands}
+        eqBands={eqBands}
+        lowCutEnabled={lowCutEnabled}
+        lowCutFrequency={lowCutFrequency}
+        onLowCutEnabledChange={setLowCutEnabled}
+        onLowCutFrequencyChange={setLowCutFrequency}
+        onBandChange={updateEqBand}
+        onFilterTypeChange={updateEqFilterType}
+      />
 
       <X32Ocr imageUrl={imageUrl} onApply={applyOcr} />
 
@@ -432,7 +430,7 @@ export default function App() {
         <div className="panel-heading compact"><div><span className="step">RULES</span><h2>공통 적용 원칙</h2></div></div>
         <div className="recommendations">
           <div><span>1</span><p><strong>Pre-EQ Gate</strong>Gain, 클리핑, 마이크·라우팅과 깨끗한 기준 상태를 먼저 확인합니다.</p></div>
-          <div><span>2</span><p><strong>한 번에 한 밴드</strong>범위 후보를 작게 적용한 뒤 같은 소리와 위치로 재측정합니다.</p></div>
+          <div><span>2</span><p><strong>X32 같은 순서</strong>Low Cut → Band → Freq → Gain → Q → Mode 순으로 직접 옮깁니다.</p></div>
           <div><span>3</span><p><strong>소스와 시스템 분리</strong>채널 Tone EQ와 공간·Monitor·Main Feedback 처리를 구분합니다.</p></div>
         </div>
       </section>
@@ -444,7 +442,7 @@ export default function App() {
           {isListening ? '정지·분석' : '30초 측정'}
         </SingleTapButton>
       </div>
-      <footer>프로필 값은 비교용 시작점입니다. 휴대폰 마이크, 공간, 마이크 종류와 연주·발성의 영향을 받으며 믹서를 자동 변경하지 않습니다.</footer>
+      <footer>웹앱은 X32 EQ 화면과 같은 조작 순서로 값을 준비하지만 실제 믹서를 자동 변경하지 않습니다. X32에서 직접 적용한 뒤 동일 조건으로 A/B 재측정하세요.</footer>
     </main>
   )
 }

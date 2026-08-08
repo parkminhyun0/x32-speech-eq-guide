@@ -44,6 +44,13 @@ function shelfContribution(freq: number, band: EqBand, direction: 'low' | 'high'
   return band.gain * (direction === 'high' ? highAmount : 1 - highAmount)
 }
 
+function cutContribution(freq: number, band: EqBand, direction: 'low' | 'high') {
+  const center = Math.max(20, band.frequency)
+  if (direction === 'low' && freq < center) return -Math.min(30, Math.log2(center / Math.max(20, freq)) * 18)
+  if (direction === 'high' && freq > center) return -Math.min(30, Math.log2(freq / center) * 18)
+  return 0
+}
+
 function eqGainAt(freq: number, bands: EqBand[], lowCutEnabled: boolean, lowCutFrequency: number) {
   let gain = 0
   for (const band of bands) {
@@ -55,13 +62,22 @@ function eqGainAt(freq: number, bands: EqBand[], lowCutEnabled: boolean, lowCutF
       gain += shelfContribution(freq, band, 'high')
       continue
     }
+    if (band.filterType === 'LowCut') {
+      gain += cutContribution(freq, band, 'low')
+      continue
+    }
+    if (band.filterType === 'HighCut') {
+      gain += cutContribution(freq, band, 'high')
+      continue
+    }
     const octaves = Math.log2(freq / Math.max(20, band.frequency))
-    const width = Math.max(0.18, 1 / Math.max(0.3, band.q))
+    const widthMultiplier = band.filterType === 'VEQ' ? 1.35 : 1
+    const width = Math.max(0.18, widthMultiplier / Math.max(0.3, band.q))
     gain += band.gain * Math.exp(-0.5 * (octaves / width) ** 2)
   }
   if (lowCutEnabled && freq < lowCutFrequency) {
     const octavesBelow = Math.log2(lowCutFrequency / Math.max(20, freq))
-    gain -= Math.min(18, octavesBelow * 12)
+    gain -= Math.min(30, octavesBelow * 18)
   }
   return gain
 }
