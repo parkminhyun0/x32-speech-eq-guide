@@ -67,6 +67,7 @@ export const BAND_LABELS = ['80Hz', '125Hz', '250Hz', '500Hz', '1kHz', '2kHz', '
 export const BAND_FREQUENCIES = [80, 125, 250, 500, 1000, 2000, 4000, 8000]
 export const STORAGE_KEY = 'x32-location-measurements-v1'
 export const DEVICE_ID_KEY = 'x32-measurement-device-id-v1'
+export const PENDING_SYNC_KEY = 'x32-location-measurement-pending-sync-v1'
 
 const pad = (value: number, length = 2) => String(value).padStart(length, '0')
 const safePart = (value: string) => value.normalize('NFKC').replace(/[^0-9A-Za-z가-힣_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'SESSION'
@@ -137,6 +138,70 @@ export function parseMeasurementFile(value: unknown): LocationMeasurementRecord[
     if (Array.isArray(records)) return records.filter(isMeasurementRecord)
   }
   return []
+}
+
+export function loadPendingRecords(): LocationMeasurementRecord[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PENDING_SYNC_KEY) || '[]')
+    return Array.isArray(parsed) ? parsed.filter(isMeasurementRecord) : []
+  } catch {
+    return []
+  }
+}
+
+function savePendingRecords(records: LocationMeasurementRecord[]) {
+  localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(records.slice(-500)))
+}
+
+export function queueRecordForMac(record: LocationMeasurementRecord) {
+  const pending = loadPendingRecords()
+  const map = new Map(pending.map((item) => [item.measurementId, item]))
+  map.set(record.measurementId, record)
+  savePendingRecords([...map.values()])
+}
+
+export function removePendingRecord(measurementId: string) {
+  savePendingRecords(loadPendingRecords().filter((record) => record.measurementId !== measurementId))
+}
+
+function archiveImportUrls() {
+  if (typeof window === 'undefined') return []
+  const urls: string[] = []
+  if (window.location.protocol === 'http:') {
+    urls.push(`http://${window.location.hostname}:8766/api/import`)
+    if (window.location.hostname === 'localhost') urls.push('http://127.0.0.1:8766/api/import')
+    if (window.location.hostname === '127.0.0.1') urls.push('http://localhost:8766/api/import')
+  }
+  return [...new Set(urls)]
+}
+
+export async function syncRecordToMac(record: LocationMeasurementRecord) {
+  for (const url of archiveImportUrls()) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-X32-Measurement': '1' },
+        body: JSON.stringify(record),
+        signal: AbortSignal.timeout(1800),
+      })
+      if (response.ok) return true
+    } catch {
+      // The record remains in the local pending queue and is retried later.
+    }
+  }
+  return false
+}
+
+export async function flushPendingRecords() {
+  const pending = loadPendingRecords()
+  const remaining: LocationMeasurementRecord[] = []
+  let synced = 0
+  for (const record of pending) {
+    if (await syncRecordToMac(record)) synced += 1
+    else remaining.push(record)
+  }
+  savePendingRecords(remaining)
+  return { synced, pending: remaining.length }
 }
 
 export function nextSessionId(records: LocationMeasurementRecord[], channel: number, date = new Date()) {

@@ -13,11 +13,17 @@ const LOCATION_IDS = new Set([
   'MIDDLE_LEFT', 'MIDDLE_CENTER', 'MIDDLE_RIGHT',
   'BACK_LEFT', 'BACK_CENTER', 'BACK_RIGHT',
 ])
+const LOCATION_CODES = {
+  FRONT_LEFT: 'FL', FRONT_CENTER: 'FC', FRONT_RIGHT: 'FR',
+  MIDDLE_LEFT: 'ML', MIDDLE_CENTER: 'MC', MIDDLE_RIGHT: 'MR',
+  BACK_LEFT: 'BL', BACK_CENTER: 'BC', BACK_RIGHT: 'BR',
+}
 const PHASES = new Set(['A', 'B'])
 const home = os.homedir()
+const primaryDirectory = path.join(home, 'Desktop', 'X32 Measurements')
 const candidateDirectories = [
   process.env.X32_MEASUREMENTS_DIR,
-  path.join(home, 'Desktop', 'X32 Measurements'),
+  primaryDirectory,
   path.join(home, 'Library', 'Mobile Documents', 'com~apple~CloudDocs', 'Desktop', 'X32 Measurements'),
   path.join(home, 'Library', 'Mobile Documents', 'com~apple~CloudDocs', 'X32 Measurements'),
 ].filter(Boolean).map((item) => path.resolve(item))
@@ -32,6 +38,8 @@ const store = {
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 const round = (value, digits = 1) => Math.round(value * (10 ** digits)) / (10 ** digits)
+const pad = (value, length = 2) => String(value).padStart(length, '0')
+const safePart = (value) => String(value || '').normalize('NFKC').replace(/[^0-9A-Za-z가-힣_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'SESSION'
 const median = (values) => {
   if (!values.length) return 0
   const sorted = [...values].sort((a, b) => a - b)
@@ -39,9 +47,25 @@ const median = (values) => {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
 }
 
+function localDateKey(date) {
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`
+}
+
+function localTimeKey(date) {
+  return `${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+}
+
+function measurementFilename(record) {
+  const measured = new Date(record.measuredAt)
+  const unique = String(record.measurementId).replace(/-/g, '').slice(0, 6).toUpperCase()
+  return [
+    'X32', localDateKey(measured), safePart(record.sessionId), `CH${pad(record.channel)}`, record.phase,
+    LOCATION_CODES[record.locationId] || record.locationId, `R${pad(record.repetition)}`, localTimeKey(measured), unique,
+  ].join('_') + '.json'
+}
+
 function ensurePrimaryDirectory() {
-  const primary = path.join(home, 'Desktop', 'X32 Measurements')
-  try { fs.mkdirSync(primary, { recursive: true }) } catch {}
+  try { fs.mkdirSync(primaryDirectory, { recursive: true }) } catch {}
 }
 
 function isRecord(value) {
@@ -68,6 +92,17 @@ function extractRecords(value) {
   if (Array.isArray(value)) return value.filter(isRecord)
   if (value && typeof value === 'object' && Array.isArray(value.records)) return value.records.filter(isRecord)
   return []
+}
+
+async function readJsonRequest(request) {
+  const chunks = []
+  let size = 0
+  for await (const chunk of request) {
+    size += chunk.length
+    if (size > 2_000_000) throw new Error('측정 업로드가 2MB를 초과했습니다.')
+    chunks.push(chunk)
+  }
+  return chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : null
 }
 
 function readJsonFile(filePath) {
@@ -104,6 +139,30 @@ function scan() {
   store.files = nextFiles
   store.errors = errors.slice(0, 20)
   store.updatedAt = Date.now()
+}
+
+function persistRecords(records) {
+  ensurePrimaryDirectory()
+  scan()
+  const saved = []
+  for (const record of records) {
+    const existing = store.records.get(record.measurementId)
+    if (existing) {
+      saved.push({ measurementId: record.measurementId, filePath: existing.sourceFile, duplicate: true })
+      continue
+    }
+
+    const filename = measurementFilename(record)
+    let filePath = path.join(primaryDirectory, filename)
+    if (fs.existsSync(filePath)) {
+      const stem = filename.replace(/\.json$/i, '')
+      filePath = path.join(primaryDirectory, `${stem}_${Date.now().toString(36)}.json`)
+    }
+    fs.writeFileSync(filePath, JSON.stringify(record, null, 2), { encoding: 'utf8', flag: 'wx' })
+    saved.push({ measurementId: record.measurementId, filePath, duplicate: false })
+  }
+  scan()
+  return saved
 }
 
 function normalizedDeviation(record) {
@@ -285,7 +344,7 @@ async function responseBody() {
 function cors(response) {
   response.setHeader('Access-Control-Allow-Origin', '*')
   response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-X32-Measurement')
   response.setHeader('Cache-Control', 'no-store')
 }
 
@@ -301,6 +360,13 @@ const server = http.createServer(async (request, response) => {
   try {
     if (url.pathname === '/api/health' && request.method === 'GET') return json(response, 200, { ok: true, port: PORT, updatedAt: store.updatedAt })
     if (url.pathname === '/api/measurements' && request.method === 'GET') return json(response, 200, await responseBody())
+    if (url.pathname === '/api/import' && request.method === 'POST') {
+      if (request.headers['x-x32-measurement'] !== '1') return json(response, 403, { error: '측정 업로드 헤더가 없습니다.' })
+      const records = extractRecords(await readJsonRequest(request))
+      if (!records.length) return json(response, 400, { error: '올바른 X32 위치 측정 기록이 없습니다.' })
+      const saved = persistRecords(records)
+      return json(response, 201, { ok: true, saved, archive: await responseBody() })
+    }
     if (url.pathname === '/api/rescan' && request.method === 'POST') { scan(); return json(response, 200, await responseBody()) }
     return json(response, 404, { error: 'API를 찾을 수 없습니다.' })
   } catch (error) {
@@ -334,6 +400,7 @@ function selfTest() {
     notes: '',
   }
   if (!isRecord(record)) throw new Error('record validation failed')
+  if (!measurementFilename(record).startsWith('X32_')) throw new Error('measurement filename failed')
   if (normalizedDeviation(record).length !== 8) throw new Error('normalization failed')
   if (!commonBands(groupTrustedByLocation([record, { ...record, measurementId: 'test-2', locationId: 'FRONT_CENTER' }, { ...record, measurementId: 'test-3', locationId: 'BACK_CENTER' }], 'A').locations).length) throw new Error('common band analysis failed')
   console.log('X32 Measurement Archive self-test: OK')
@@ -344,8 +411,12 @@ else {
   ensurePrimaryDirectory()
   scan()
   setInterval(scan, SCAN_INTERVAL_MS).unref()
-  server.listen(PORT, '127.0.0.1', () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`X32 Measurement Archive가 시작됐습니다: http://localhost:${PORT}/api/measurements`)
+    console.log('iPhone 자동 저장 주소:')
+    for (const values of Object.values(os.networkInterfaces())) {
+      for (const item of values || []) if (item.family === 'IPv4' && !item.internal) console.log(`  http://${item.address}:${PORT}/api/import`)
+    }
     console.log('감시 폴더:')
     directories.forEach((directory) => console.log(`  ${directory}`))
   })
